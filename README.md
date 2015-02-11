@@ -1,19 +1,28 @@
 # JDime  -  Structured Merge with Auto-Tuning
+## License & Copyright
+* Copyright (c) 2013-2015, Olaf Lessenich  
+
+All rights reserved.  
+
+JDime is covered by the GNU Lesser General Public License.  
+The full license text is distributed with this software. See the `LICENSE` file.
+
 ## Tools Used:
 JDime uses these tools/libraries:
 
-* JastAddJ (https://bitbucket.org/jastadd/jastaddj)
-> Commit [c0017e0](https://bitbucket.org/jastadd/jastaddj/src/c0017e0)  
-> Copyright (c) 2005-2008, Torbjörn Ekman  
-> Copyright (c) 2005-2013, JastAddJ Committers  
-> JastAddJ is covered by the Modified BSD License.  
-> The full license text is distributed with this software.  
-> See the file licenses/JastAddJ-BSD.
+* JastAddJ (https://bitbucket.org/jastadd/jastaddj)  
+
+  > Commit [c0017e0](https://bitbucket.org/jastadd/jastaddj/src/c0017e0)  
+  > Copyright (c) 2005-2008, Torbjörn Ekman  
+  > Copyright (c) 2005-2013, JastAddJ Committers  
+  > JastAddJ is covered by the Modified BSD License.  
+  > The full license text is distributed with this software.  
+  > See the file `licenses/JastAddJ-BSD`.
 
 The changes that were made to JastAddJ are shipped with this software  
 and covered by the Modified BSD License.  
-See patches/JastAddJ.patch for the changes,  
-and patches/LICENSE for the license text.
+See `patches/JastAddJ.patch` for the changes,  
+and `patches/LICENSE` for the license text.
 
 ## System Requirements:
 * gradle (http://www.gradle.org/)
