@@ -3,7 +3,7 @@
 * Copyright (C) 2013-2014 Olaf Lessenich  
 * Copyright (C) 2014-2015 University of Passau, Germany  
   
-> Authors: Olaf Lessenich, Georg Seibt
+  > Authors: Olaf Lessenich, Georg Seibt
 
 All rights reserved.  
 
