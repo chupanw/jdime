@@ -77,32 +77,35 @@ task natives {
         glpk_name = "libglpk.so"
     }
 
-    if (!rootProject.hasProperty(glpk_java_prop_name)) {
-        println "Provide the path to the $glpk_java_name native library using the $glpk_java_prop_name property."
-        fail = true;
-    }
-    if (!rootProject.hasProperty(glpk_prop_name)) {
-        println "Provide the path to the $glpk_name native library using the $glpk_prop_name property."
-        fail = true;
-    }
+    // if (!rootProject.hasProperty(glpk_java_prop_name)) {
+    //     println "Provide the path to the $glpk_java_name native library using the $glpk_java_prop_name property."
+    //     fail = true;
+    // }
+    // if (!rootProject.hasProperty(glpk_prop_name)) {
+    //     println "Provide the path to the $glpk_name native library using the $glpk_prop_name property."
+    //     fail = true;
+    // }
 
     if (fail) {
         throw new InvalidUserDataException("Missing native library paths.");
     }
 
-    def glpkJavaFile = file(rootProject."$glpk_java_prop_name").getAbsoluteFile()
-    def glpkFile = file(rootProject."$glpk_prop_name").getAbsoluteFile()
-    glpkJavaIncludeDir = glpkJavaFile.getParentFile()
+    // def glpkJavaFile = file(rootProject."$glpk_java_prop_name").getAbsoluteFile()
+    // def glpkFile = file(rootProject."$glpk_prop_name").getAbsoluteFile()
 
-    if (glpkJavaIncludeDir.exists()) {
-        if (glpkJavaIncludeDir.isFile()) {
-            println "$glpkJavaIncludeDir is not a directory."
-            fail = true;
-        }
-    } else {
-        println "$glpkJavaIncludeDir does not exist."
-        fail = true;
-    }
+    def glpkJavaFile = file("/usr/local/lib/jni/libglpk_java.dylib")
+    def glpkFile = file("/usr/local/lib/libglpk.dylib")
+    // glpkJavaIncludeDir = glpkJavaFile.getParentFile()
+
+    // if (glpkJavaIncludeDir.exists()) {
+    //     if (glpkJavaIncludeDir.isFile()) {
+    //         println "$glpkJavaIncludeDir is not a directory."
+    //         fail = true;
+    //     }
+    // } else {
+    //     println "$glpkJavaIncludeDir does not exist."
+    //     fail = true;
+    // }
 
     if (glpkJavaFile.exists()) {
         if (!glpkJavaFile.isFile() || glpkJavaFile.getName() != glpk_java_name) {
