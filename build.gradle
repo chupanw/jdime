@@ -27,6 +27,10 @@ apply plugin: 'application'
 
 def glpkJavaIncludeDir = null
 
+task wrapper (type: Wrapper) {
+	gradleVersion = '2.3'
+}
+
 sourceSets {
     main {
         java {
