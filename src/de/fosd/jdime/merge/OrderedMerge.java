@@ -276,6 +276,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 							LOG.trace(prefix(rightChild) + "adding change");
 						}
 						// add the right change
+                        // @cpwTODO: Changes added by patches, surround with if block
 						AddOperation<T> addOp = new AddOperation<>(rightChild,
 								target);
 						rightChild.setMerged(true);

@@ -26,24 +26,10 @@ package de.fosd.jdime.common;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
-import AST.ASTNode;
-import AST.BytecodeParser;
-import AST.ClassDecl;
-import AST.CompilationUnit;
-import AST.ConstructorDecl;
-import AST.FieldDecl;
-import AST.FieldDeclaration;
-import AST.ImportDecl;
-import AST.InterfaceDecl;
-import AST.JavaParser;
-import AST.Literal;
-import AST.MethodDecl;
-import AST.Program;
+import AST.*;
+import AST.List;
 import de.fosd.jdime.common.operations.ConflictOperation;
 import de.fosd.jdime.common.operations.MergeOperation;
 import de.fosd.jdime.common.operations.Operation;
@@ -53,6 +39,8 @@ import de.fosd.jdime.stats.ASTStats;
 import de.fosd.jdime.stats.StatsElement;
 import de.fosd.jdime.strategy.ASTNodeStrategy;
 import de.fosd.jdime.strategy.MergeStrategy;
+import edu.cmu.ASTModifier;
+import edu.cmu.Pair;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.log4j.Logger;
 
@@ -241,11 +229,52 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see de.fosd.jdime.common.Artifact#createArtifact(boolean)
-	 */
+    @Override
+    public void condCopyArtifact(ASTNodeArtifact destination) throws IOException {
+
+        /*
+        Add an if block to desination node
+        (Note: If this is a variable declaration, no need to surround with an if block)
+         */
+
+        // VarAccess for IfStmt
+        VarAccess varAccess = new VarAccess("patch" + ASTModifier.numPatches);
+
+        // thenBranch
+        List<Stmt> thenBranchList = new List<>();
+
+        Block thenBranchBlock = new Block(thenBranchList);
+
+        // IfStmt
+        IfStmt ifStmt = new IfStmt(varAccess, thenBranchBlock);
+
+        // Create wrapper tree
+        ASTNodeArtifact ifStmtWrapper = createWrapperTree(ifStmt);
+        ifStmtWrapper.copyArtifact(destination);
+    }
+
+    private ASTNodeArtifact createWrapperTree(ASTNode<?> node) throws IOException{
+        ASTNodeArtifact wrapperNode = new ASTNodeArtifact(node);
+        ArtifactList<ASTNodeArtifact> childrenList = new ArtifactList<>();
+        for (int i = 0; i < node.getNumChild(); i++) {
+            ASTNodeArtifact childWrapper = createWrapperTree(node.getChild(i));
+            childWrapper.setParent(wrapperNode);
+            childrenList.add(childWrapper);
+            if (node.getChild(i) instanceof AST.List){
+                this.copyArtifact(childWrapper);
+            }
+        }
+        if (!childrenList.isEmpty()) {
+            wrapperNode.setChildren(childrenList);
+        }
+        return wrapperNode;
+    }
+
+    /*
+         * (non-Javadoc)
+         *
+         * @see de.fosd.jdime.common.Artifact#createArtifact(boolean)
+         */
 	@Override
 	public final void createArtifact(final boolean isLeaf) throws IOException {
 		// TODO Auto-generated method stub
@@ -539,6 +568,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 
 		boolean safeMerge = true;
 
+        // why does it matter?
 		int numChildNoTransform;
 		try {
 			numChildNoTransform = target.astnode.getClass().newInstance().getNumChildNoTransform();
@@ -546,12 +576,17 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 			throw new RuntimeException();
 		}
 
+        // why: what makes the root node different?
+        // why: what's the meaning of numChildNoTransform?
 		if (!isRoot() && numChildNoTransform > 0) {
 		
 			// this language element has a fixed number of children, we need to be careful with this one
 			boolean leftChanges = left.hasChanges(false);
 			boolean rightChanges = right.hasChanges(false);
 
+            // What's the meaning of these two changes
+            // If both left and right have changes when compared to base, there is a conflict.
+            // In the case of two-way merge, base is initialized by left, so leftChanges is always false
 			if (leftChanges && rightChanges) {
 				
 				if (LOG.isTraceEnabled()) {
@@ -612,22 +647,56 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	 */
 	public final String prettyPrint() {
 		assert (astnode != null);
-		rebuildAST();
+        reconstructAST();
+//		rebuildAST();
 		astnode.flushCaches();
 		if (LOG.isDebugEnabled()) {
 			System.out.println(dumpTree());
 		}
-		return astnode.prettyPrint();
+        return astnode.prettyPrint();
 	}
 
 	/**
 	 * Rebuild the encapsulated ASTNode tree top down. This should be only
 	 * called at the root node
 	 */
-	public final void rebuildAST() {
+	public final void reconstructAST() {
 
 		if (isConflict()) {
-			astnode.isConflict = true;
+            ASTModifier modifier = new ASTModifier(this);
+            modifier.prepareCondBoolean();
+        }
+
+		ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
+
+		for (int i = 0; i < getNumChildren(); i++) {
+			ASTNodeArtifact child = getChild(i);
+			newchildren[i] = child.astnode;
+			newchildren[i].setParent(astnode);
+			child.reconstructAST();
+
+		}
+		astnode.jdimeChanges = hasChanges();
+		astnode.jdimeId = getId();
+		astnode.setChildren(newchildren);
+
+        ASTModifier.insertCondBoolean(astnode);
+
+        // May violate the second expression here because astnode may have more children
+        // than its wrapper.
+        // @cpwTODO: keep the astnode and its wrapper consistent
+//		assert (isConflict() || getNumChildren() == astnode
+//				.getNumChildNoTransform());
+	}
+
+    /**
+     * Rebuild the encapsulated ASTNode tree top down. This should be only
+     * called at the root node
+     */
+    public final void rebuildAST() {
+
+        if (isConflict()) {
+            astnode.isConflict = true;
 			astnode.jdimeId = getId();
 
 			if (left != null) {
@@ -639,32 +708,30 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 				right.rebuildAST();
 				astnode.right = right.astnode;
 			}
+        }
 
-		}
+        ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
 
-		ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
-
-		for (int i = 0; i < getNumChildren(); i++) {
-			ASTNodeArtifact child = getChild(i);
-			newchildren[i] = child.astnode;
-			newchildren[i].setParent(astnode);
-			child.rebuildAST();
-
-		}
-		astnode.jdimeChanges = hasChanges();
-		astnode.jdimeId = getId();
-		astnode.setChildren(newchildren);
+        for (int i = 0; i < getNumChildren(); i++) {
+            ASTNodeArtifact child = getChild(i);
+            newchildren[i] = child.astnode;
+            newchildren[i].setParent(astnode);
+            child.rebuildAST();
+        }
+        astnode.jdimeChanges = hasChanges();
+        astnode.jdimeId = getId();
+        astnode.setChildren(newchildren);
 
 		assert (isConflict() || getNumChildren() == astnode
 				.getNumChildNoTransform());
+    }
 
-	}
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see de.fosd.jdime.common.Artifact#toString()
-	 */
+    /*
+     * (non-Javadoc)
+     *
+     * @see de.fosd.jdime.common.Artifact#toString()
+     */
 	@Override
 	public final String toString() {
 		assert (astnode != null);

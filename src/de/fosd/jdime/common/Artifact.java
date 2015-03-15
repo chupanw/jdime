@@ -179,6 +179,15 @@ public abstract class Artifact<T extends Artifact<T>> implements Comparable<T> {
 	 */
 	public abstract void copyArtifact(final T destination) throws IOException;
 
+
+    /**
+     * Copies an @code{Artifact} by introducing an if block
+     * @param destination
+     *      destination artifact
+     * @throws IOException
+     */
+    public abstract void condCopyArtifact(final T destination) throws IOException;
+
 	/**
 	 * Creates an @code{Artifact}.
 	 *

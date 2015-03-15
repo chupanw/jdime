@@ -87,6 +87,7 @@ public class StructuredStrategy extends MergeStrategy<FileArtifact> {
 		assert ((baseFile.exists() && !baseFile.isDirectory()) || baseFile.isEmptyDummy());
 		assert (rightFile.exists() && !rightFile.isDirectory());
 
+        //why reset?
 		context.resetStreams();
 
 		FileArtifact target = operation.getTarget();
@@ -148,6 +149,7 @@ public class StructuredStrategy extends MergeStrategy<FileArtifact> {
 
 				astMergeOp.apply(mergeContext);
 
+                //why: what's the meaning of this condition?
 				if (i == 0 && (!context.isBenchmark() || context.hasStats())) {
 					if (LOG.isTraceEnabled()) {
 						LOG.trace("Structured merge finished.");

@@ -78,6 +78,7 @@ public abstract class Operation<T extends Artifact<T>> {
 	public abstract void apply(final MergeContext context) throws IOException,
 			InterruptedException;
 
+
 	/**
 	 * Returns the name of the operation.
 	 *
