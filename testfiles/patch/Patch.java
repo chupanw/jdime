@@ -4,7 +4,7 @@ public class Base{
         int b = 2;
         int c = 3;
         c = a + b;
-        b++;
+        b = b + b;
         b += 2;
         System.out.println(b);
     }

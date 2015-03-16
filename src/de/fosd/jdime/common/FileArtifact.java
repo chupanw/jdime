@@ -214,7 +214,7 @@ public class FileArtifact extends Artifact<FileArtifact> {
 	}
 
     @Override
-    public void condCopyArtifact(FileArtifact destination) throws IOException {
+    public void condCopyArtifact(FileArtifact destination, boolean isLeft) throws IOException {
         throw new NotYetImplementedException("condCopyArtifact is only implemented in ASTNodeArtifact");
     }
 

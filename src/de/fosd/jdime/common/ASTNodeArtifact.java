@@ -229,7 +229,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	}
 
     @Override
-    public void condCopyArtifact(ASTNodeArtifact destination) throws IOException {
+    public void condCopyArtifact(ASTNodeArtifact destination, boolean isLeft) throws IOException {
 
         ASTModifier.condNeeded = true;
 
@@ -254,7 +254,12 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 
         // IfStmt
         IfStmt ifStmt;
-        ifStmt = new IfStmt(varAccess, thenBranchBlock);
+        if (!isLeft) {
+            ifStmt = new IfStmt(varAccess, thenBranchBlock);
+        }
+        else {
+            ifStmt = new IfStmt(notExpr, thenBranchBlock);
+        }
 
         // Create wrapper tree
         ASTNodeArtifact ifStmtWrapper = createWrapperTree(ifStmt, true);

@@ -184,9 +184,11 @@ public abstract class Artifact<T extends Artifact<T>> implements Comparable<T> {
      * Copies an @code{Artifact} by introducing an if block
      * @param destination
      *      destination artifact
+     * @param isLeft
+     *      does the changes come from left?
      * @throws IOException
      */
-    public abstract void condCopyArtifact(final T destination) throws IOException;
+    public abstract void condCopyArtifact(final T destination, boolean isLeft) throws IOException;
 
 	/**
 	 * Creates an @code{Artifact}.

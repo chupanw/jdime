@@ -157,7 +157,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 							} else {
 								// add the left change
 								AddOperation<T> addOp = new AddOperation<>(
-										leftChild, target);
+										leftChild, target, true);
 								leftChild.setMerged(true);
 								addOp.apply(context);
 							}
@@ -182,7 +182,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 						}
 						// add the left change
 						AddOperation<T> addOp = new AddOperation<>(leftChild,
-								target);
+								target, true);
 						leftChild.setMerged(true);
 						addOp.apply(context);
 					}
@@ -252,7 +252,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 								}
 								// add the right change
 								AddOperation<T> addOp = new AddOperation<>(
-										rightChild, target);
+										rightChild, target, false);
 								rightChild.setMerged(true);
 								addOp.apply(context);
 							}
@@ -278,7 +278,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 						// add the right change
                         // @cpwTODO: Changes added by patches, surround with if block
 						AddOperation<T> addOp = new AddOperation<>(rightChild,
-								target);
+								target, false);
 						rightChild.setMerged(true);
 						addOp.apply(context);
 					}

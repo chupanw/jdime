@@ -144,7 +144,7 @@ public class UnorderedMerge<T extends Artifact<T>> implements MergeInterface<T> 
 					}
 					// add the left change
 					AddOperation<T> addOp = new AddOperation<>(leftChild,
-							target);
+							target, true);
 					leftChild.setMerged(true);
 					addOp.apply(context);
 				}
@@ -195,7 +195,7 @@ public class UnorderedMerge<T extends Artifact<T>> implements MergeInterface<T> 
 					}
 					// add the right change
 					AddOperation<T> addOp = new AddOperation<>(rightChild,
-							target);
+							target, false);
 					rightChild.setMerged(true);
 					addOp.apply(context);
 				}

@@ -60,6 +60,8 @@ public class AddOperation<T extends Artifact<T>> extends Operation<T> {
 	 */
 	private T target;
 
+    private boolean isLeft;
+
 	/**
 	 * Class constructor.
 	 *
@@ -68,11 +70,12 @@ public class AddOperation<T extends Artifact<T>> extends Operation<T> {
 	 * @param target
 	 *            output artifact
 	 */
-	public AddOperation(final T artifact, final T target) {
+	public AddOperation(final T artifact, final T target, final boolean isLeft) {
 		super();
 		this.artifact = artifact;
 		this.target = target;
-	}
+        this.isLeft = isLeft;
+    }
 
 	/*
 	 * (non-Javadoc)
@@ -144,7 +147,7 @@ public class AddOperation<T extends Artifact<T>> extends Operation<T> {
             assert (target.exists());
 
 //            artifact.copyArtifact(target);
-            artifact.condCopyArtifact(target);
+            artifact.condCopyArtifact(target, isLeft);
         }
 
         if (context.hasStats()) {
