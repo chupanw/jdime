@@ -89,7 +89,7 @@ public abstract class Artifact<T extends Artifact<T>> implements Comparable<T> {
 	/**
 	 * Whether this artifact represents a conflict.
 	 */
-	private boolean conflict = false;
+	protected boolean conflict = false;
 
 	/**
 	 * If true, this artifact is an empty dummy.
@@ -213,6 +213,7 @@ public abstract class Artifact<T extends Artifact<T>> implements Comparable<T> {
 	 */
 	public abstract T createConflictDummy(final T type, final T left,
 			final T right) throws FileNotFoundException;
+
 
 	/**
 	 * Returns a dummy @code{Artifact}.

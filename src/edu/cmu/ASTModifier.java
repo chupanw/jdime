@@ -2,7 +2,9 @@ package edu.cmu;
 
 import AST.*;
 import de.fosd.jdime.common.ASTNodeArtifact;
+import de.fosd.jdime.common.ArtifactList;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -14,7 +16,12 @@ import java.util.Set;
  */
 public class ASTModifier {
     ASTNodeArtifact node;
+    // cpwTODO: increment when dealing with new patches
     public static int numPatches = 1;
+    // cpwTODO: reset when dealing with new patches
+    public static boolean condCreated = false;
+    // cpwTODO: reset when dealing with new patches
+    public static boolean condNeeded = false;
     // store the nodes to be inserted
     public static HashMap<ASTNode<?>, HashSet<Pair>> insertionMap = new HashMap<>();
 
@@ -22,27 +29,35 @@ public class ASTModifier {
         this.node = node;
     }
 
-    private ASTNode<?> getClassDecl(){
+    private ASTNodeArtifact getClassDecl(){
         ASTNodeArtifact cur = node;
         while (!(cur.getASTNode() instanceof ClassDecl)){
             cur = cur.getParent();
+            if (cur == null){
+                return null;
+            }
         }
-        return cur.getASTNode();
+        return cur;
     }
 
-    private ASTNode<?> getBodyDeclList(ASTNode<?> classDecl){
+    private ASTNodeArtifact getBodyDeclList(ASTNodeArtifact classDecl){
         // According to the JastAddJ API, the last child of ClassDecl is BodyDecl
-        int index = classDecl.getNumChild() -1;
+        int index = classDecl.getNumChildren() -1;
         return classDecl.getChild(index);
     }
 
-    public void prepareCondBoolean() {
-        ASTNode<?> classDecl = getClassDecl();
-        ASTNode<?> bodyDeclList = getBodyDeclList(classDecl);
-
-        if (containsKey(bodyDeclList)){
+    public void insertCondBoolean() {
+        if (!condNeeded){
             return;
         }
+        if (condCreated){
+            return;
+        }
+        ASTNodeArtifact classDecl = getClassDecl();
+        if (classDecl == null){
+            return;
+        }
+        ASTNodeArtifact bodyDeclList = getBodyDeclList(classDecl);
 
         /* Create a new AST.FieldDeclaration */
 
@@ -60,16 +75,32 @@ public class ASTModifier {
 
         FieldDeclaration fieldDeclaration = new FieldDeclaration(modifiers, typeAccess, name, booleanLiteral);
 
-//        bodyDeclList.insertChild(fieldDeclaration, 1);
-        HashSet<Pair> hashSet = insertionMap.get(bodyDeclList);
-        if (hashSet == null) {
-            hashSet = new HashSet<>();
-            insertionMap.put(bodyDeclList, hashSet);
-        }
-        hashSet.add(new Pair(fieldDeclaration, 0));
+        fieldDeclaration.setParent(bodyDeclList.getASTNode());
+        bodyDeclList.getASTNode().insertChild(fieldDeclaration, 0);
 
+        ASTNodeArtifact fieldDeclarationWrapper = createWrapperTree(fieldDeclaration);
+        ArtifactList children = bodyDeclList.getChildren();
+        children.add(0, fieldDeclarationWrapper);
+        bodyDeclList.setChildren(children);
+        fieldDeclarationWrapper.setParent(bodyDeclList);
+
+        condCreated = true;
         //debug
         System.out.println("@Conditional is created");
+    }
+
+    private ASTNodeArtifact createWrapperTree(ASTNode<?> node){
+        ASTNodeArtifact wrapperNode = new ASTNodeArtifact(node);
+        ArtifactList<ASTNodeArtifact> childrenList = new ArtifactList<>();
+        for (int i = 0; i < node.getNumChild(); i++) {
+            ASTNodeArtifact childWrapper = createWrapperTree(node.getChild(i));
+            childWrapper.setParent(wrapperNode);
+            childrenList.add(childWrapper);
+        }
+        if (!childrenList.isEmpty()) {
+            wrapperNode.setChildren(childrenList);
+        }
+        return wrapperNode;
     }
 
     public static boolean containsKey(ASTNode<?> n){
@@ -94,24 +125,5 @@ public class ASTModifier {
             }
         }
         return null;
-    }
-
-    public static void insertCondBoolean(ASTNode<?> n){
-        if (ASTModifier.containsKey(n)){
-            HashSet<Pair> hashSet = ASTModifier.get(n);
-            assert hashSet != null;
-            Iterator<Pair> iter = hashSet.iterator();
-            while (iter.hasNext()){
-                Pair pair = iter.next();
-                n.insertChild(pair.getNode(), pair.getIndex());
-            }
-        }
-    }
-
-    /**
-     * Called only when there is a conflict. Surround the conflicting code with
-     * an if block.
-     */
-    private void createCondBlock() {
     }
 }

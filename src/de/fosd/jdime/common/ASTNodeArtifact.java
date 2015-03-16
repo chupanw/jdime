@@ -40,7 +40,6 @@ import de.fosd.jdime.stats.StatsElement;
 import de.fosd.jdime.strategy.ASTNodeStrategy;
 import de.fosd.jdime.strategy.MergeStrategy;
 import edu.cmu.ASTModifier;
-import edu.cmu.Pair;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.log4j.Logger;
 
@@ -232,13 +231,21 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
     @Override
     public void condCopyArtifact(ASTNodeArtifact destination) throws IOException {
 
+        ASTModifier.condNeeded = true;
+
         /*
         Add an if block to desination node
         (Note: If this is a variable declaration, no need to surround with an if block)
          */
 
+        if (astnode instanceof VariableDeclaration){
+            this.copyArtifact(destination);
+            return;
+        }
+
         // VarAccess for IfStmt
         VarAccess varAccess = new VarAccess("patch" + ASTModifier.numPatches);
+        LogNotExpr notExpr = new LogNotExpr(varAccess);
 
         // thenBranch
         List<Stmt> thenBranchList = new List<>();
@@ -246,21 +253,22 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
         Block thenBranchBlock = new Block(thenBranchList);
 
         // IfStmt
-        IfStmt ifStmt = new IfStmt(varAccess, thenBranchBlock);
+        IfStmt ifStmt;
+        ifStmt = new IfStmt(varAccess, thenBranchBlock);
 
         // Create wrapper tree
-        ASTNodeArtifact ifStmtWrapper = createWrapperTree(ifStmt);
+        ASTNodeArtifact ifStmtWrapper = createWrapperTree(ifStmt, true);
         ifStmtWrapper.copyArtifact(destination);
     }
 
-    private ASTNodeArtifact createWrapperTree(ASTNode<?> node) throws IOException{
+    private ASTNodeArtifact createWrapperTree(ASTNode<?> node, boolean isCopy) throws IOException{
         ASTNodeArtifact wrapperNode = new ASTNodeArtifact(node);
         ArtifactList<ASTNodeArtifact> childrenList = new ArtifactList<>();
         for (int i = 0; i < node.getNumChild(); i++) {
-            ASTNodeArtifact childWrapper = createWrapperTree(node.getChild(i));
+            ASTNodeArtifact childWrapper = createWrapperTree(node.getChild(i), isCopy);
             childWrapper.setParent(wrapperNode);
             childrenList.add(childWrapper);
-            if (node.getChild(i) instanceof AST.List){
+            if (isCopy && node.getChild(i) instanceof AST.List){
                 this.copyArtifact(childWrapper);
             }
         }
@@ -647,8 +655,9 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	 */
 	public final String prettyPrint() {
 		assert (astnode != null);
-        reconstructAST();
-//		rebuildAST();
+        insertCondBoolean();
+        expandConflict();
+		rebuildAST();
 		astnode.flushCaches();
 		if (LOG.isDebugEnabled()) {
 			System.out.println(dumpTree());
@@ -656,38 +665,6 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
         return astnode.prettyPrint();
 	}
 
-	/**
-	 * Rebuild the encapsulated ASTNode tree top down. This should be only
-	 * called at the root node
-	 */
-	public final void reconstructAST() {
-
-		if (isConflict()) {
-            ASTModifier modifier = new ASTModifier(this);
-            modifier.prepareCondBoolean();
-        }
-
-		ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
-
-		for (int i = 0; i < getNumChildren(); i++) {
-			ASTNodeArtifact child = getChild(i);
-			newchildren[i] = child.astnode;
-			newchildren[i].setParent(astnode);
-			child.reconstructAST();
-
-		}
-		astnode.jdimeChanges = hasChanges();
-		astnode.jdimeId = getId();
-		astnode.setChildren(newchildren);
-
-        ASTModifier.insertCondBoolean(astnode);
-
-        // May violate the second expression here because astnode may have more children
-        // than its wrapper.
-        // @cpwTODO: keep the astnode and its wrapper consistent
-//		assert (isConflict() || getNumChildren() == astnode
-//				.getNumChildNoTransform());
-	}
 
     /**
      * Rebuild the encapsulated ASTNode tree top down. This should be only
@@ -699,7 +676,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
             astnode.isConflict = true;
 			astnode.jdimeId = getId();
 
-			if (left != null) {
+            if (left != null) {
 				left.rebuildAST();
 				astnode.left = left.astnode;
 			}
@@ -708,6 +685,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 				right.rebuildAST();
 				astnode.right = right.astnode;
 			}
+            System.out.println(astnode.prettyPrint());
         }
 
         ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
@@ -724,6 +702,49 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 
 		assert (isConflict() || getNumChildren() == astnode
 				.getNumChildNoTransform());
+    }
+
+    /**
+     * Expand the conflicting node into if-else statement
+     * cpwTODO: if the conflicting node is not part of a statement, this may fail becase if-else is not enough to express variation
+     */
+    public final void expandConflict() {
+
+        if (isConflict()) {
+
+            try {
+                createConflictIfElse();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            if (left != null) {
+                left.expandConflict();
+            }
+
+            if (right != null) {
+                right.expandConflict();
+            }
+        }
+
+        for (int i = 0; i < getNumChildren(); i++) {
+            ASTNodeArtifact child = getChild(i);
+            child.expandConflict();
+        }
+    }
+
+    /**
+     * Insert conditioanl flag is necessary
+     */
+    public final void insertCondBoolean() {
+
+        ASTModifier astModifier = new ASTModifier(this);
+        astModifier.insertCondBoolean();
+
+        for (int i = 0; i < getNumChildren(); i++) {
+            ASTNodeArtifact child = getChild(i);
+            child.insertCondBoolean();
+        }
     }
 
 
@@ -752,6 +773,8 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	public final ASTNodeArtifact createConflictDummy(
 			final ASTNodeArtifact type, final ASTNodeArtifact left,
 			final ASTNodeArtifact right) throws FileNotFoundException {
+        ASTModifier.condNeeded = true;
+
 		ASTNodeArtifact conflict;
 
 		conflict = new ASTNodeArtifact(type.astnode.fullCopy());
@@ -760,7 +783,87 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 		return conflict;
 	}
 
-	/**
+    public void createConflictIfElse() throws FileNotFoundException {
+
+        Stack<Integer> path = new Stack<>();
+
+        ASTNodeArtifact stmtNodeWrapper = this;
+        while (!(stmtNodeWrapper.getASTNode() instanceof Stmt)){
+            ASTNodeArtifact tmp = stmtNodeWrapper.getParent();
+            int childIndex = tmp.getChildren().indexOf(stmtNodeWrapper);
+            path.push(childIndex);
+            stmtNodeWrapper = tmp;
+        }
+        ASTNode<?> stmtNode = stmtNodeWrapper.astnode;
+        Stmt thenStmt = (Stmt) stmtNode.fullCopy();
+        Stmt elseStmt = (Stmt) stmtNode.fullCopy();
+
+        ASTNode<?> leftNew = left.astnode.fullCopy();
+        ASTNode<?> rightNew = right.astnode.fullCopy();
+
+        ASTNode<?> leftOld = thenStmt;
+        ASTNode<?> rightOld = elseStmt;
+
+        while (!path.isEmpty()){
+            int index = path.pop();
+            leftOld = leftOld.getChild(index);
+            rightOld = rightOld.getChild(index);
+        }
+
+        ASTNode<?> leftParent = leftOld.getParent();
+        ASTNode<?> rightParent = rightOld.getParent();
+        int index = leftParent.getIndexOfChild(leftOld);
+        leftParent.removeChild(index);
+        rightParent.removeChild(index);
+        leftParent.insertChild(leftNew, index);
+        rightParent.insertChild(rightNew, index);
+
+        // VarAccess for IfStmt
+        VarAccess varAccess = new VarAccess("patch" + ASTModifier.numPatches);
+
+        // IfStmt
+        IfStmt ifStmt;
+        ifStmt = new IfStmt(varAccess, thenStmt, elseStmt);
+
+        // Create wrapper tree
+        ASTNodeArtifact ifStmtWrapper = null;
+        try {
+            ifStmtWrapper = createWrapperTree(ifStmt, false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (ifStmtWrapper == null) {
+            System.out.println("Error creating ifStmtWrapper");
+            return;
+        }
+
+        ASTNodeArtifact stmtParentWrapper = stmtNodeWrapper.getParent();
+
+        ArtifactList children = stmtParentWrapper.getChildren();
+        children.remove(stmtNodeWrapper);
+        children.add(ifStmtWrapper);
+        stmtParentWrapper.setChildren(children);
+
+        ifStmtWrapper.setParent(stmtParentWrapper);
+
+    }
+
+    public boolean replaceChild(ASTNode<?> rootNode, ASTNode<?> origin, ASTNode<?> replace){
+        if (rootNode.equals(origin)){
+            ASTNode<?> parent = rootNode.getParent();
+            int index = parent.getIndexOfChild(rootNode);
+            parent.removeChild(index);
+            parent.insertChild(replace, index);
+            return true;
+        }
+        boolean success = false;
+        for (int i = 0; i < rootNode.getNumChild(); i++) {
+            success |= replaceChild(rootNode.getChild(i), origin, replace);
+        }
+        return success;
+    }
+
+    /**
 	 * Returns statistical data of the tree. stats[0]: number of nodes stats[1]:
 	 * tree depth stats[2]: maximum number of children
 	 *
