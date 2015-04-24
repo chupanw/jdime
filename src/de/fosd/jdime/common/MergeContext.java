@@ -36,6 +36,16 @@ import de.fosd.jdime.strategy.MergeStrategy;
  */
 public class MergeContext implements Cloneable {
 
+	private ASTNodeArtifact diffResult = null;
+
+	public void setDiffResult(ASTNodeArtifact ast) {
+		diffResult = ast;
+	}
+
+	public ASTNodeArtifact getDiffResult() {
+		return diffResult;
+	}
+
 	/**
 	 * Default value of benchmark runs.
 	 */
@@ -247,6 +257,7 @@ public class MergeContext implements Cloneable {
 		clone.recursive = recursive;
 		clone.saveStats = saveStats;
 		clone.keepGoing = keepGoing;
+		clone.diffResult = diffResult;
 		return clone;
 	}
 

@@ -91,6 +91,27 @@ public abstract class Artifact<T extends Artifact<T>> implements Comparable<T> {
 	 */
 	protected boolean conflict = false;
 
+	protected boolean added = false;
+
+	public void setAdded(){
+		added = true;
+	}
+
+	public boolean isAdded() {
+		return added;
+	}
+
+	protected boolean deleted = false;
+
+	public void setDeleted(){
+		deleted = true;
+	}
+
+	public boolean isDeleted() {
+		return deleted;
+	}
+
+
 	/**
 	 * If true, this artifact is an empty dummy.
 	 */

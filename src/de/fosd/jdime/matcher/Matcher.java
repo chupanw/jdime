@@ -83,6 +83,7 @@ public class Matcher<T extends Artifact<T>> implements MatchingInterface<T> {
 			if (leftChild.isOrdered()) {
 				isOrdered = true;
 			}
+			// Question: what are unique labels?
 			if (!uniqueLabels || !leftChild.hasUniqueLabels()) {
 				uniqueLabels = false;
 			}

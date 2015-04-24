@@ -1,10 +1,12 @@
 package edu.cmu;
 
+import com.sun.corba.se.impl.orbutil.graph.Graph;
 import de.fosd.jdime.common.ASTNodeArtifact;
 import de.fosd.jdime.common.ArtifactList;
 import de.fosd.jdime.common.FileArtifact;
 import de.fosd.jdime.common.MergeContext;
 import de.fosd.jdime.strategy.MergeStrategy;
+import edu.cmu.utility.GraphvizGenerator;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -39,7 +41,7 @@ public class Main {
 
         // initialize logger
         BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.WARN);
+        Logger.getRootLogger().setLevel(Level.INFO);
 
         try {
             de.fosd.jdime.Main.merge(context);
@@ -47,6 +49,8 @@ public class Main {
             e.printStackTrace();
         }
 
+        GraphvizGenerator.toPDF(patchAST, "patchGraph");
+        GraphvizGenerator.toPDF(baseAST, "baseGraph");
 
         System.out.println("Finished");
 

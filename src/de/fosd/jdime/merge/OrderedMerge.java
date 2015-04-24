@@ -126,7 +126,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 					} else {
 						// can be safely deleted
 						DeleteOperation<T> delOp = new DeleteOperation<>(
-								leftChild);
+								leftChild, null);
 						delOp.apply(context);
 					}
 				} else {
@@ -218,7 +218,7 @@ public class OrderedMerge<T extends Artifact<T>> implements MergeInterface<T> {
 					} else {
 						// can be safely deleted
 						DeleteOperation<T> delOp = new DeleteOperation<>(
-								rightChild);
+								rightChild, null);
 						delOp.apply(context);
 					}
 				} else {

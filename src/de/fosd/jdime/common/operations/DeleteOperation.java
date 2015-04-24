@@ -54,6 +54,7 @@ public class DeleteOperation<T extends Artifact<T>> extends Operation<T> {
 	 * The <code>Artifact</code> that is deleted by the operation.
 	 */
 	private T artifact;
+	private T target;
 
 	/**
 	 * Class constructor.
@@ -61,9 +62,10 @@ public class DeleteOperation<T extends Artifact<T>> extends Operation<T> {
 	 * @param artifact
 	 *            that is deleted by the operation
 	 */
-	public DeleteOperation(final T artifact) {
+	public DeleteOperation(final T artifact, final T target) {
 		super();
 		this.artifact = artifact;
+		this.target = target;
 	}
 
 	/*
@@ -79,6 +81,18 @@ public class DeleteOperation<T extends Artifact<T>> extends Operation<T> {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Applying: " + this);
 		}
+
+		if (target != null) {
+			if (!target.exists()) {
+				target.createArtifact(false);
+			}
+			assert (target.exists());
+
+			artifact.setDeleted();
+			artifact.copyArtifact(target);
+		}
+
+
 
 		if (context.hasStats()) {
 			Stats stats = context.getStats();

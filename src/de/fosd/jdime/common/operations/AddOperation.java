@@ -79,105 +79,111 @@ public class AddOperation<T extends Artifact<T>> extends Operation<T> {
 
 	/*
 	 * (non-Javadoc)
-	 * 
+	 *
 	 * @see de.fosd.jdime.common.operations.Operation#apply()
 	 */
-//	@Override
-//	public final void apply(final MergeContext context) throws IOException {
-//		assert (artifact != null);
-//		assert (artifact.exists()) : "Artifact does not exist: " + artifact;
+	@Override
+	public final void apply(final MergeContext context) throws IOException {
+		assert (artifact != null);
+		assert (artifact.exists()) : "Artifact does not exist: " + artifact;
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Applying: " + this);
+		}
+
+		if (target != null) {
+			if (!target.exists()) {
+				target.createArtifact(false);
+			}
+
+			assert (target.exists());
+
+			if (isLeft){
+				artifact.setDeleted();
+			}
+			else{
+				artifact.setAdded();
+			}
+			artifact.copyArtifact(target);
+		}
+
+		if (context.hasStats()) {
+			Stats stats = context.getStats();
+			stats.incrementOperation(this);
+			StatsElement element = stats.getElement(artifact
+					.getStatsKey(context));
+			element.incrementAdded();
+
+			if (artifact instanceof FileArtifact) {
+
+				// analyze java files to get statistics
+				for (FileArtifact child : ((FileArtifact) artifact)
+						.getJavaFiles()) {
+					ASTNodeArtifact childAST = new ASTNodeArtifact(child);
+					ASTStats childStats = childAST.getStats(null,
+							LangElem.TOPLEVELNODE, false);
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(childStats.toString());
+					}
+
+					if (context.isConsecutive()) {
+						context.getStats().addRightStats(childStats);
+					} else {
+						context.getStats().addASTStats(childStats);
+					}
+				}
+			}
+		}
+	}
+
+//    @Override
+//    public final void apply(final MergeContext context) throws IOException {
+//        assert (artifact != null);
+//        assert (artifact.exists()) : "Artifact does not exist: " + artifact;
 //
-//		if (LOG.isDebugEnabled()) {
-//			LOG.debug("Applying: " + this);
-//		}
+//        if (LOG.isDebugEnabled()) {
+//            LOG.debug("Applying: " + this);
+//        }
 //
-//		if (target != null) {
-//			if (!target.exists()) {
-//				target.createArtifact(false);
-//			}
+//        if (target != null) {
+//            if (!target.exists()) {
+//                target.createArtifact(false);
+//            }
 //
-//			assert (target.exists());
+//            assert (target.exists());
 //
-//			artifact.copyArtifact(target);
-//		}
+////            artifact.copyArtifact(target);
+//            artifact.condCopyArtifact(target, isLeft);
+//        }
 //
-//		if (context.hasStats()) {
-//			Stats stats = context.getStats();
-//			stats.incrementOperation(this);
-//			StatsElement element = stats.getElement(artifact
-//					.getStatsKey(context));
-//			element.incrementAdded();
+//        if (context.hasStats()) {
+//            Stats stats = context.getStats();
+//            stats.incrementOperation(this);
+//            StatsElement element = stats.getElement(artifact
+//                    .getStatsKey(context));
+//            element.incrementAdded();
 //
-//			if (artifact instanceof FileArtifact) {
+//            if (artifact instanceof FileArtifact) {
 //
-//				// analyze java files to get statistics
-//				for (FileArtifact child : ((FileArtifact) artifact)
-//						.getJavaFiles()) {
-//					ASTNodeArtifact childAST = new ASTNodeArtifact(child);
-//					ASTStats childStats = childAST.getStats(null,
-//							LangElem.TOPLEVELNODE, false);
-//					if (LOG.isDebugEnabled()) {
-//						LOG.debug(childStats.toString());
-//					}
+//                // analyze java files to get statistics
+//                for (FileArtifact child : ((FileArtifact) artifact)
+//                        .getJavaFiles()) {
+//                    ASTNodeArtifact childAST = new ASTNodeArtifact(child);
+//                    ASTStats childStats = childAST.getStats(null,
+//                            LangElem.TOPLEVELNODE, false);
+//                    if (LOG.isDebugEnabled()) {
+//                        LOG.debug(childStats.toString());
+//                    }
 //
-//					if (context.isConsecutive()) {
-//						context.getStats().addRightStats(childStats);
-//					} else {
-//						context.getStats().addASTStats(childStats);
-//					}
-//				}
-//			}
-//		}
-//	}
-
-    @Override
-    public final void apply(final MergeContext context) throws IOException {
-        assert (artifact != null);
-        assert (artifact.exists()) : "Artifact does not exist: " + artifact;
-
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Applying: " + this);
-        }
-
-        if (target != null) {
-            if (!target.exists()) {
-                target.createArtifact(false);
-            }
-
-            assert (target.exists());
-
-//            artifact.copyArtifact(target);
-            artifact.condCopyArtifact(target, isLeft);
-        }
-
-        if (context.hasStats()) {
-            Stats stats = context.getStats();
-            stats.incrementOperation(this);
-            StatsElement element = stats.getElement(artifact
-                    .getStatsKey(context));
-            element.incrementAdded();
-
-            if (artifact instanceof FileArtifact) {
-
-                // analyze java files to get statistics
-                for (FileArtifact child : ((FileArtifact) artifact)
-                        .getJavaFiles()) {
-                    ASTNodeArtifact childAST = new ASTNodeArtifact(child);
-                    ASTStats childStats = childAST.getStats(null,
-                            LangElem.TOPLEVELNODE, false);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug(childStats.toString());
-                    }
-
-                    if (context.isConsecutive()) {
-                        context.getStats().addRightStats(childStats);
-                    } else {
-                        context.getStats().addASTStats(childStats);
-                    }
-                }
-            }
-        }
-    }
+//                    if (context.isConsecutive()) {
+//                        context.getStats().addRightStats(childStats);
+//                    } else {
+//                        context.getStats().addASTStats(childStats);
+//                    }
+//                }
+//            }
+//        }
+//    }
 
 	@Override
 	public final String getName() {

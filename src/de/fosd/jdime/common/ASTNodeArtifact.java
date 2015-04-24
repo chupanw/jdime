@@ -40,6 +40,7 @@ import de.fosd.jdime.stats.StatsElement;
 import de.fosd.jdime.strategy.ASTNodeStrategy;
 import de.fosd.jdime.strategy.MergeStrategy;
 import edu.cmu.ASTModifier;
+import edu.cmu.utility.GraphvizGenerator;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.log4j.Logger;
 
@@ -62,7 +63,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 		p.initJavaParser(new JavaParser() {
 			@Override
 			public CompilationUnit parse(final java.io.InputStream is,
-					final String fileName) throws java.io.IOException,
+										 final String fileName) throws java.io.IOException,
 					beaver.Parser.Exception {
 				return new parser.JavaParser().parse(is, fileName);
 			}
@@ -177,6 +178,13 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 		ASTNodeArtifact myChild;
 		try {
 			myChild = new ASTNodeArtifact((ASTNode<?>) child.astnode.clone());
+			// migrathe the added and deleted flag
+			if (child.isAdded()) {
+				myChild.setAdded();
+			}
+			if (child.isDeleted()) {
+				myChild.setDeleted();
+			}
 			myChild.deleteChildren();
 			myChild.setRevision(child.getRevision());
 			myChild.setParent(this);
@@ -222,6 +230,12 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 		ASTNodeArtifact copy = destination.addChild(this);
 		if (!isConflict() && hasChildren()) {
 			for (ASTNodeArtifact child : getChildren()) {
+				if (isAdded()){
+					child.setAdded();
+				}
+				if (isDeleted()) {
+					child.setDeleted();
+				}
 				child.copyArtifact(copy);
 			}
 		}
@@ -340,8 +354,18 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 
 		sb.append("\"");
 
-		if (hasMatches()) {
-			sb.append(", fillcolor = green, style = filled");
+//		if (hasMatches()) {
+//			sb.append(", fillcolor = green, style = filled");
+//		}
+		if (isAdded()) {
+			sb.append(", fillcolor = yellow, style = filled");
+		}
+		else if (isDeleted()) {
+			sb.append(", fillcolor = red, style = filled");
+		}
+		else if (isConflict()){
+			// should not happen
+			sb.append(", fillcolor = gray, style = filled");
 		}
 
 		sb.append("];");
@@ -579,9 +603,10 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 		ASTNodeArtifact right = triple.getRight();
 		ASTNodeArtifact target = operation.getTarget();
 
+		// Question: What is safemerge?
 		boolean safeMerge = true;
 
-        // why does it matter?
+        // Question: why does it matter?
 		int numChildNoTransform;
 		try {
 			numChildNoTransform = target.astnode.getClass().newInstance().getNumChildNoTransform();
@@ -589,17 +614,15 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 			throw new RuntimeException();
 		}
 
-        // why: what makes the root node different?
-        // why: what's the meaning of numChildNoTransform?
+        // Question: what makes the root node different?
+        // Question: what's the meaning of numChildNoTransform?
 		if (!isRoot() && numChildNoTransform > 0) {
 		
 			// this language element has a fixed number of children, we need to be careful with this one
 			boolean leftChanges = left.hasChanges(false);
 			boolean rightChanges = right.hasChanges(false);
 
-            // What's the meaning of these two changes
             // If both left and right have changes when compared to base, there is a conflict.
-            // In the case of two-way merge, base is initialized by left, so leftChanges is always false
 			if (leftChanges && rightChanges) {
 				
 				if (LOG.isTraceEnabled()) {
@@ -607,14 +630,14 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 					LOG.trace("Both " + left.getId() + " and " + right.getId() + " contain changes.");
 					LOG.trace("We will report a conflict instead of performing the merge.");
 				}
-				safeMerge = false;
-				
-				// to be safe, we will report a conflict instead of merging
-				ASTNodeArtifact targetParent = target.getParent();
-				targetParent.removeChild(target);
-				
-				Operation<ASTNodeArtifact> conflictOp = new ConflictOperation<>(left, left, right, targetParent);
-				conflictOp.apply(context);
+//				safeMerge = false;
+//
+//				// to be safe, we will report a conflict instead of merging
+//				ASTNodeArtifact targetParent = target.getParent();
+//				targetParent.removeChild(target);
+//
+//				Operation<ASTNodeArtifact> conflictOp = new ConflictOperation<>(left, left, right, targetParent);
+//				conflictOp.apply(context);
 			}
 		}
 		
@@ -660,8 +683,8 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	 */
 	public final String prettyPrint() {
 		assert (astnode != null);
-        insertCondBoolean();
-        expandConflict();
+//        insertCondBoolean();
+//        expandConflict();
 		rebuildAST();
 		astnode.flushCaches();
 		if (LOG.isDebugEnabled()) {
@@ -690,7 +713,6 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 				right.rebuildAST();
 				astnode.right = right.astnode;
 			}
-            System.out.println(astnode.prettyPrint());
         }
 
         ASTNode<?>[] newchildren = new ASTNode[getNumChildren()];
