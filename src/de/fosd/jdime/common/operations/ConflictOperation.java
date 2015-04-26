@@ -84,25 +84,16 @@ public class ConflictOperation<T extends Artifact<T>> extends Operation<T> {
 			LOG.debug("Applying: " + this);
 		}
 
-		//Use AddOperation and DeleteOperation to represent ConflictOperation
+		if (target != null) {
+			if (!target.exists()) {
+				target.createArtifact(false);
+			}
 
-		assert (target != null);
-		DeleteOperation<?> delOp = new DeleteOperation<>(left, target);
-		delOp.apply(context);
-
-		AddOperation<?> addOp = new AddOperation<>(right, target, false);
-		addOp.apply(context);
-
-//		if (target != null) {
-//			if (!target.exists()) {
-//				target.createArtifact(false);
-//			}
-//
-//			assert (target.exists());
-//			T conflict = target.createConflictDummy(type, left, right);
-//            assert (conflict.isConflict());
-//            conflict.copyArtifact(target);
-//		}
+			assert (target.exists());
+			T conflict = target.createConflictDummy(type, left, right);
+            assert (conflict.isConflict());
+            conflict.copyArtifact(target);
+		}
 	}
 
 	/*

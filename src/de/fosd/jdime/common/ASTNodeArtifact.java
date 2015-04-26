@@ -357,15 +357,15 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 //		if (hasMatches()) {
 //			sb.append(", fillcolor = green, style = filled");
 //		}
-		if (isAdded()) {
+		if (isConflict()){
+			// should not happen
+			sb.append(", fillcolor = gray, style = filled");
+		}
+		else if (isAdded()) {
 			sb.append(", fillcolor = yellow, style = filled");
 		}
 		else if (isDeleted()) {
 			sb.append(", fillcolor = red, style = filled");
-		}
-		else if (isConflict()){
-			// should not happen
-			sb.append(", fillcolor = gray, style = filled");
 		}
 
 		sb.append("];");
@@ -727,8 +727,8 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
         astnode.jdimeId = getId();
         astnode.setChildren(newchildren);
 
-		assert (isConflict() || getNumChildren() == astnode
-				.getNumChildNoTransform());
+//		assert (isConflict() || getNumChildren() == astnode
+//				.getNumChildNoTransform());
     }
 
     /**
