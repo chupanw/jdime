@@ -1,6 +1,7 @@
 package edu.cmu;
 
 import AST.ASTNode;
+import AST.Block;
 import AST.Stmt;
 import de.fosd.jdime.common.ASTNodeArtifact;
 
@@ -30,6 +31,11 @@ public class StmtIterator {
         }
     }
 
+    public String next(){
+        curInst++;
+        return instList.get(curInst-1);
+    }
+
 
     private void parseInst(ASTNodeArtifact cur) {
         if (isStmt(cur)) {
@@ -44,7 +50,7 @@ public class StmtIterator {
     }
 
     private boolean isStmt(ASTNodeArtifact astNode) {
-        if (astNode.getASTNode() instanceof Stmt) {
+        if (astNode.getASTNode() instanceof Stmt && !(astNode.getASTNode() instanceof Block)) {
             return true;
         }
         return false;

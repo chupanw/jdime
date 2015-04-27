@@ -26,8 +26,10 @@ public class NASTMerge {
     // Fix the incomplete handle of ConflictOp
     private void rebuildASTs(){
         for (int i = 0; i < astArray.size(); i++) {
+            astArray.get(i).rebuildAST();
             rebuildAST(astArray.get(i));
             astArray.get(i).forceRenumbering();
+            astArray.get(i).rebuildAST();
         }
     }
 
@@ -48,7 +50,13 @@ public class NASTMerge {
     }
 
     private ASTNodeArtifact clone(ASTNodeArtifact node) {
-        ASTNodeArtifact cloneNode = new ASTNodeArtifact(node.getASTNode());
+        ASTNode cloneNodeAST = null;
+        try {
+            cloneNodeAST = node.getASTNode().clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        ASTNodeArtifact cloneNode = new ASTNodeArtifact(cloneNodeAST);
         ArtifactList<ASTNodeArtifact> children;
         ASTNode<?>[] astChildren;
         // Assume that original node represents Add
@@ -71,6 +79,7 @@ public class NASTMerge {
                 ASTNodeArtifact cloneChild = clone(node.getChild(1));
                 ASTNode cloneChildAST = cloneChild.getASTNode();
                 node.removeChild(node.getChild(1));
+                node.getASTNode().removeChild(1);
                 cloneChild.setParent(cloneNode);
                 cloneChildAST.setParent(cloneNode.getASTNode());
                 children.add(cloneChild);
@@ -80,6 +89,7 @@ public class NASTMerge {
                 ASTNodeArtifact cloneChild = clone(node.getChild(0));
                 ASTNode cloneChildAST = cloneChild.getASTNode();
                 node.removeChild(node.getChild(0));
+                node.getASTNode().removeChild(0);
                 cloneChild.setParent(cloneNode);
                 cloneChildAST.setParent(cloneNode.getASTNode());
                 children.add(cloneChild);
@@ -149,6 +159,9 @@ public class NASTMerge {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            ASTNode astNode = ast.getASTNode();
+            ast.rebuildAST();
+            System.out.println(astNode.prettyPrint());
         }
     }
 }
