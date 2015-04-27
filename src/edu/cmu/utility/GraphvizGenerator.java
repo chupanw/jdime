@@ -1,6 +1,8 @@
 package edu.cmu.utility;
 
+import AST.ASTNode;
 import de.fosd.jdime.common.ASTNodeArtifact;
+import de.fosd.jdime.common.ArtifactList;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -38,5 +40,23 @@ public class GraphvizGenerator {
             e.printStackTrace();
         }
         out.delete();
+    }
+
+    public static void toPDF(ASTNode astNode, String output) throws IOException {
+        ASTNodeArtifact rootArtifact = wrap(astNode);
+        rootArtifact.forceRenumbering();
+        toPDF(rootArtifact, output);
+    }
+
+    private static ASTNodeArtifact wrap(ASTNode astNode){
+        ASTNodeArtifact astArtifact = new ASTNodeArtifact(astNode);
+        ArtifactList<ASTNodeArtifact> childrenArtifact = new ArtifactList<>();
+        for (int i = 0; i < astNode.getNumChild(); i++) {
+            ASTNodeArtifact child = wrap(astNode.getChild(i));
+            child.setParent(astArtifact);
+            childrenArtifact.add(child);
+        }
+        astArtifact.setChildren(childrenArtifact);
+        return astArtifact;
     }
 }

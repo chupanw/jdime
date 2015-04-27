@@ -1,8 +1,6 @@
 package edu.cmu;
 
-import AST.ASTNode;
-import AST.Block;
-import AST.Stmt;
+import AST.*;
 import de.fosd.jdime.common.ASTNodeArtifact;
 import de.fosd.jdime.common.ArtifactList;
 import edu.cmu.utility.GraphvizGenerator;
@@ -15,12 +13,21 @@ import java.util.ArrayList;
  */
 public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
-    private ASTNodeArtifact base;
+    private ASTNode baseAST;
 
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
         this.astArray = astArray;
-        this.base = base;
+        baseAST = base.getASTNode();
         rebuildASTs();
+        for (int i = 0; i < astArray.size(); i++) {
+            ASTNodeArtifact ast = astArray.get(i);
+            try {
+                GraphvizGenerator.toPDF(ast, "diff" + i);
+                System.out.println(ast.getASTNode().prettyPrint());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     // Fix the incomplete handle of ConflictOp
@@ -152,16 +159,61 @@ public class NASTMerge {
     public void merge() {
         int num = astArray.size();
 
+        // Add @Conditional
         for (int i = 0; i < num; i++) {
-            ASTNodeArtifact ast = astArray.get(i);
-            try {
-                GraphvizGenerator.toPDF(ast, "diff" + i);
-            } catch (IOException e) {
-                e.printStackTrace();
+            ASTNodeArtifact astArtifact = astArray.get(i);
+            if (astArtifact.hasChanges()) {
+                addConditional(i);
             }
-            ASTNode astNode = ast.getASTNode();
-            ast.rebuildAST();
-            System.out.println(astNode.prettyPrint());
         }
     }
+
+
+    private ASTNode getClassDecl(ASTNode cur){
+        if (cur instanceof ClassDecl){
+            return cur;
+        }
+        else{
+            for (int i = 0; i < cur.getNumChild(); i++) {
+                ASTNode ret = getClassDecl(cur.getChild(i));
+                if (ret != null) {
+                    return ret;
+                }
+            }
+        }
+        return null;
+    }
+
+    private ASTNode getBodyDeclList(ASTNode classDecl){
+        // According to the JastAddJ API, the last child of ClassDecl is BodyDecl
+        int index = classDecl.getNumChild() -1;
+        return classDecl.getChild(index);
+    }
+
+    private void addConditional(int patchNum) {
+        ASTNode classDecl = getClassDecl(baseAST);
+        ASTNode bodyDeclList = getBodyDeclList(classDecl);
+
+        /* Create a new AST.FieldDeclaration */
+        Modifiers modifiers = new Modifiers();
+        Annotation annotation = new Annotation("annotation", new TypeAccess("Conditional"), new List<ElementValuePair>());
+        Modifier staticModifier = new Modifier("static");
+        modifiers.addModifier(annotation);
+        modifiers.addModifier(staticModifier);
+
+        PrimitiveTypeAccess typeAccess = new PrimitiveTypeAccess("boolean");
+
+        String name = "patch" + patchNum;
+
+        BooleanLiteral booleanLiteral = new BooleanLiteral(true);
+
+        FieldDeclaration fieldDeclaration = new FieldDeclaration(modifiers, typeAccess, name, booleanLiteral);
+
+        fieldDeclaration.setParent(bodyDeclList);
+        bodyDeclList.insertChild(fieldDeclaration, 0);
+
+        //debug
+        System.out.println("@Conditional is created");
+    }
+
 }
