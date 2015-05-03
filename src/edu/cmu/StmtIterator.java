@@ -12,7 +12,7 @@ import java.util.ArrayList;
  */
 public class StmtIterator {
     private ASTNodeArtifact progNode;
-    private ArrayList<String> instList;
+    private ArrayList<ASTNodeArtifact> instList;
     private int curInst;
 
     public StmtIterator(ASTNodeArtifact astNode) {
@@ -31,15 +31,28 @@ public class StmtIterator {
         }
     }
 
-    public String next(){
+    public ASTNodeArtifact next(){
         curInst++;
         return instList.get(curInst-1);
+    }
+
+    public int getOldIndex(ASTNodeArtifact astNode) {
+        int index = 0;
+        for (int i = 0; i < instList.size(); i++) {
+            if (astNode == instList.get(i)) {
+                return index;
+            }
+            else if (!instList.get(i).isAdded()){
+                index++;
+            }
+        }
+        return -1;
     }
 
 
     private void parseInst(ASTNodeArtifact cur) {
         if (isStmt(cur)) {
-            instList.add(cur.prettyPrint());
+            instList.add(cur);
         }
         else{
             for (int i = 0; i < cur.getNumChildren(); i++) {
