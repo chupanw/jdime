@@ -30,8 +30,8 @@ public class NASTMerge {
         for (int i = 0; i < astArray.size(); i++) {
             ASTNodeArtifact ast = astArray.get(i);
             try {
-                GraphvizGenerator.toPDF(ast, "diff" + i);
-                System.out.println(ast.getASTNode().prettyPrint());
+                int patchNum = i;
+                GraphvizGenerator.toPDF(ast, "diff" + patchNum);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -55,7 +55,7 @@ public class NASTMerge {
 
 
         try {
-            GraphvizGenerator.toPDF(baseAST, "applyDel");
+            GraphvizGenerator.toPDF(baseAST, "merged");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -211,48 +211,48 @@ public class NASTMerge {
             e.printStackTrace();
         }
         ASTNodeArtifact cloneNode = new ASTNodeArtifact(cloneNodeAST);
-        ArtifactList<ASTNodeArtifact> children;
-        ASTNode<?>[] astChildren;
+        ArtifactList<ASTNodeArtifact> cloneChildren;
+        ASTNode[] cloneChildrenAST;
         // Assume that original node represents Add
         node.setAdded();
         cloneNode.setDeleted();
-        boolean conflict1 = false;
-        boolean conflict2 = false;
         boolean conflict = false;
-        if (node.getNumChildren() == 2) {
-            conflict1 = node.getChild(0).isAdded() && node.getChild(1).isDeleted();
-            conflict2 = node.getChild(0).isDeleted() && node.getChild(1).isAdded();
-            assert !(conflict1 && conflict2);
-            conflict = conflict1 || conflict2;
+        if (hasAddedChild(node) && hasDeletedChild(node)) {
+            conflict = true;
         }
         if (conflict) {
-            // only one type of conflict is possible
-            children = new ArtifactList<>();
-            astChildren = new ASTNode[1];
-            if (conflict1) {
-                ASTNodeArtifact cloneChild = clone(node.getChild(1));
-                ASTNode cloneChildAST = cloneChild.getASTNode();
-                node.removeChild(node.getChild(1));
-                node.getASTNode().removeChild(1);
-                cloneChild.setParent(cloneNode);
-                cloneChildAST.setParent(cloneNode.getASTNode());
-                children.add(cloneChild);
-                astChildren[0] = cloneChildAST;
-            } else if (conflict2) {
-                ASTNodeArtifact cloneChild = clone(node.getChild(0));
-                ASTNode cloneChildAST = cloneChild.getASTNode();
-                node.removeChild(node.getChild(0));
-                node.getASTNode().removeChild(0);
-                cloneChild.setParent(cloneNode);
-                cloneChildAST.setParent(cloneNode.getASTNode());
-                children.add(cloneChild);
-                astChildren[0] = cloneChildAST;
+            cloneChildren = new ArtifactList<>();
+            cloneChildrenAST = new ASTNode[countDeletedChildren(node)];
+            int cloneChildrenIndex = 0;
+            for (ASTNodeArtifact child : node.getChildren()) {
+                if (child.isDeleted()) {
+                    ASTNodeArtifact cloneChild = clone(child);
+                    ASTNode cloneChildAST = cloneChild.getASTNode();
+                    cloneChild.setParent(cloneNode);
+                    cloneChildAST.setParent(cloneNode.getASTNode());
+                    cloneChildren.add(cloneChild);
+                    cloneChildrenAST[cloneChildrenIndex] = cloneChildAST;
+                    cloneChildrenIndex++;
+                }
             }
-            cloneNode.setChildren(children);
-            cloneNode.getASTNode().setChildren(astChildren);
+            cloneNode.setChildren(cloneChildren);
+            cloneNode.getASTNode().setChildren(cloneChildrenAST);
+            boolean hasDel = true;
+            while (hasDel) {
+                hasDel = false;
+                for (ASTNodeArtifact child : node.getChildren()) {
+                    if (child.isDeleted()) {
+                        int index = node.getChildren().indexOf(child);
+                        node.getASTNode().removeChild(index);
+                        node.removeChild(child);
+                        hasDel = true;
+                        break;
+                    }
+                }
+            }
         } else {
-            children = new ArtifactList<>();
-            astChildren = new ASTNode[node.getNumChildren()];
+            cloneChildren = new ArtifactList<>();
+            cloneChildrenAST = new ASTNode[node.getNumChildren()];
             for (int i = 0; i < node.getNumChildren(); i++) {
                 ASTNodeArtifact child = node.getChild(i);
                 ASTNodeArtifact cloneChild = clone(child);
@@ -260,25 +260,19 @@ public class NASTMerge {
                 ASTNode cloneChildAST = cloneChild.getASTNode();
                 cloneChild.setParent(cloneNode);
                 cloneChildAST.setParent(cloneNode.getASTNode());
-                children.add(cloneChild);
-                astChildren[i] = cloneChildAST;
+                cloneChildren.add(cloneChild);
+                cloneChildrenAST[i] = cloneChildAST;
             }
-            cloneNode.setChildren(children);
-            cloneNode.getASTNode().setChildren(astChildren);
+            cloneNode.setChildren(cloneChildren);
+            cloneNode.getASTNode().setChildren(cloneChildrenAST);
         }
         return cloneNode;
     }
 
     private boolean isConflict(ASTNodeArtifact cur) {
         boolean conflict = false;
-        if (cur.getNumChildren() == 2) {
-            ASTNodeArtifact leftChild = cur.getChild(0);
-            ASTNodeArtifact rightChild = cur.getChild(1);
-            if (leftChild.isAdded() && rightChild.isDeleted()) {
-                conflict = true;
-            } else if (leftChild.isDeleted() && rightChild.isAdded()) {
-                conflict = true;
-            }
+        if (hasAddedChild(cur) && hasDeletedChild(cur)) {
+            conflict = true;
         }
         if (conflict) {
             return conflict;
@@ -288,6 +282,34 @@ public class NASTMerge {
             }
         }
         return conflict;
+    }
+
+    private boolean hasAddedChild(ASTNodeArtifact cur) {
+        for (ASTNodeArtifact child : cur.getChildren()) {
+            if (child.isAdded()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDeletedChild(ASTNodeArtifact cur) {
+        for (ASTNodeArtifact child : cur.getChildren()) {
+            if (child.isDeleted()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int countDeletedChildren(ASTNodeArtifact cur){
+        int count = 0;
+        for (ASTNodeArtifact child : cur.getChildren()) {
+            if (child.isDeleted()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private boolean isStmt(ASTNodeArtifact astNode) {
@@ -366,8 +388,6 @@ public class NASTMerge {
         fieldDeclaration.setParent(bodyDeclList);
         bodyDeclList.insertChild(fieldDeclaration, 0);
 
-        //debug
-        System.out.println("@Conditional is created");
     }
 
 }

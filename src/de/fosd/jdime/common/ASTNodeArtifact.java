@@ -225,7 +225,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 	@Override
 	public final void copyArtifact(final ASTNodeArtifact destination)
 			throws IOException {
-		ASTNodeArtifact copy = destination.addChild(this);
+		ASTNodeArtifact childCopy = destination.addChild(this);
 		if (!isConflict() && hasChildren()) {
 			for (ASTNodeArtifact child : getChildren()) {
 				if (isAdded()){
@@ -234,7 +234,7 @@ public class ASTNodeArtifact extends Artifact<ASTNodeArtifact> {
 				if (isDeleted()) {
 					child.setDeleted();
 				}
-				child.copyArtifact(copy);
+				child.copyArtifact(childCopy);
 			}
 		}
 

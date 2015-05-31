@@ -62,7 +62,7 @@ public class MultiMain {
 
         // initialize logger
         BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        Logger.getRootLogger().setLevel(Level.ERROR);
 
         try {
             de.fosd.jdime.Main.merge(context1);
@@ -75,9 +75,9 @@ public class MultiMain {
         System.out.println("Finished");
 
         ArrayList<ASTNodeArtifact> diffArray = new ArrayList<>();
-//        diffArray.add(context1.getDiffResult());
+        diffArray.add(context1.getDiffResult());
         diffArray.add(context2.getDiffResult());
-//        diffArray.add(context3.getDiffResult());
+        diffArray.add(context3.getDiffResult());
         NASTMerge multiMerger = new NASTMerge(diffArray,baseAST);
         multiMerger.merge();
     }
