@@ -17,6 +17,7 @@ public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
     private ASTNode baseAST;
     private HashMap<Integer, HashSet<Integer>> delMap;
+    // insertLoc -> patchNum -> StmtList
     private HashMap<Integer, HashMap<Integer, ArrayList<ASTNode>>> addMap;
 
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
@@ -85,7 +86,7 @@ public class NASTMerge {
                 }
                 Block bodyBlock = new Block(bodyList);
                 IfStmt ifStmt = new IfStmt(cond, bodyBlock);
-                astList.insertChild(ifStmt, insertLoc);
+                astList.insertChild(ifStmt, insertLoc+1);
                 ifStmt.setParent(astList);
             }
         }
