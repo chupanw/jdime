@@ -7,7 +7,6 @@ import de.fosd.jdime.common.ArtifactList;
 import edu.cmu.utility.GraphvizGenerator;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -16,17 +15,22 @@ import java.util.*;
 public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
     private ASTNode baseAST;
+    // insertLoc -> instruction set
     private HashMap<Integer, HashSet<Integer>> delMap;
     // insertLoc -> patchNum -> StmtList
     private HashMap<Integer, HashMap<Integer, ArrayList<ASTNode>>> addMap;
+    private HashSet<String> mtdNames;
 
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
-        delMap = new HashMap<>();
-        addMap = new HashMap<>();
+        this.delMap = new HashMap<>();
+        this.addMap = new HashMap<>();
         this.astArray = astArray;
-        baseAST = base.getASTNode();
-        delMap = new HashMap<>();
+        this.baseAST = base.getASTNode();
+        this.delMap = new HashMap<>();
+        this.mtdNames = new HashSet<>();
 
+        getMethods(mtdNames, base);
+        checkMtds();
         rebuildASTs();
         for (int i = 0; i < astArray.size(); i++) {
             ASTNodeArtifact ast = astArray.get(i);
@@ -35,6 +39,26 @@ public class NASTMerge {
                 GraphvizGenerator.toPDF(ast, "diff" + patchNum);
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+        }
+    }
+
+    private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
+        if (StmtIterator.isMethod(curNode)) {
+            MethodDecl mtdDecl = (MethodDecl) curNode.getASTNode();
+            mtdNames.add(mtdDecl.getID());
+        }
+        for (int i = 0; i < curNode.getNumChildren(); i++) {
+            getMethods(mtdNames, curNode.getChild(i));
+        }
+    }
+
+    private void checkMtds(){
+        for (int i = 0; i < astArray.size(); i++) {
+            HashSet<String> names = new HashSet<>();
+            getMethods(names, astArray.get(i));
+            if (!names.equals(mtdNames)) {
+                System.out.println("WARNING: Methods do not match in patch " + i);
             }
         }
     }
@@ -48,25 +72,26 @@ public class NASTMerge {
                 addConditional(i);
             }
         }
-        collectDel();
-        applyDel();
 
-        collectAdd();
-        applyAdd();
-
+        Iterator<String> mtdItr = mtdNames.iterator();
+        while (mtdItr.hasNext()) {
+            String mtd = mtdItr.next();
+            collectDel(mtd);
+            applyDel(mtd);
+            collectAdd(mtd);
+            applyAdd(mtd);
+        }
 
         try {
             GraphvizGenerator.toPDF(baseAST, "merged");
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         System.out.println(baseAST.prettyPrint());
-
     }
 
-    private void applyAdd() {
-        ASTNode astMethodDecl = getMethodDecl(baseAST);
+    private void applyAdd(String mtdName) {
+        ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
         ASTNode astList = getInstList(astMethodDecl);
         Set<Integer> keySet = addMap.keySet();
         ArrayList<Integer> list = new ArrayList<>(keySet);
@@ -92,9 +117,9 @@ public class NASTMerge {
         }
     }
 
-    private void collectAdd() {
+    private void collectAdd(String mtdName) {
         for (int i = 0; i < astArray.size(); i++) {
-            StmtIterator stmtIter = new StmtIterator(astArray.get(i));
+            StmtIterator stmtIter = new StmtIterator(astArray.get(i), mtdName);
             int insertLoc = 0;
             while (stmtIter.hasNext()) {
                 ASTNodeArtifact stmt = stmtIter.next();
@@ -125,9 +150,9 @@ public class NASTMerge {
     }
 
 
-    private void collectDel(){
+    private void collectDel(String mtdName){
         for (int i = 0; i < astArray.size(); i++) {
-            StmtIterator stmtIter = new StmtIterator(astArray.get(i));
+            StmtIterator stmtIter = new StmtIterator(astArray.get(i), mtdName);
             while (stmtIter.hasNext()) {
                 ASTNodeArtifact stmt = stmtIter.next();
                 if (stmt.isDeleted()) {
@@ -146,8 +171,8 @@ public class NASTMerge {
         }
     }
 
-    private void applyDel() {
-        ASTNode astMethodDecl = getMethodDecl(baseAST);
+    private void applyDel(String mtdName) {
+        ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
         ASTNode astList = getInstList(astMethodDecl);
         Iterator<Integer> posIter = delMap.keySet().iterator();
         while (posIter.hasNext()) {
@@ -321,13 +346,15 @@ public class NASTMerge {
         }
     }
 
-    private ASTNode getMethodDecl(ASTNode cur) {
+    private ASTNode getMethodDecl(ASTNode cur, String mtdName) {
         if (cur instanceof MethodDecl) {
-            return cur;
+            if (((MethodDecl) cur).getID().equals(mtdName)){
+                return cur;
+            }
         }
         else{
             for (int i = 0; i < cur.getNumChild(); i++) {
-                ASTNode ret = getMethodDecl(cur.getChild(i));
+                ASTNode ret = getMethodDecl(cur.getChild(i), mtdName);
                 if (ret != null) {
                     return ret;
                 }
