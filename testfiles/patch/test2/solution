@@ -1,0 +1,51 @@
+public class Base {
+  @Conditional static boolean patch2 = true;
+  @Conditional static boolean patch1 = true;
+  @Conditional static boolean patch0 = true;
+  public static void main(String[] args) {
+    int a = 1;
+    int b = 2;
+    int c;
+    if(patch2) {
+      a++;
+    }
+    if(!patch0 && !patch1 && !patch2) {
+      c = 3;
+    }
+    if(patch2) {
+      System.out.println(c);
+      b = a;
+    }
+    if(patch1) {
+      System.out.println(b);
+      System.out.println(a);
+    }
+    if(patch0) {
+      System.out.println(a);
+      System.out.println(a);
+    }
+    if(!patch2) {
+      System.out.println(b);
+    }
+    if(patch2) {
+      assert b == 3;
+    }
+  }
+  public void method1() {
+    int a;
+    int b;
+    int c;
+    if(!patch0 && !patch1 && !patch2) {
+      c++;
+    }
+    if(patch2) {
+      System.out.println(c);
+    }
+    if(patch1) {
+      System.out.println(b);
+    }
+    if(patch0) {
+      System.out.println(a);
+    }
+  }
+}
