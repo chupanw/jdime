@@ -45,4 +45,38 @@ public class Base {
       System.out.println(a);
     }
   }
+  public int method1(int x) {
+    int e;
+    int f;
+    int g;
+    if(!patch0 && !patch1 && !patch2) {
+      if(e) {
+        f++;
+      }
+    }
+    if(patch2) {
+      if(e) {
+        f += 3;
+      }
+    }
+    if(patch1) {
+      if(e) {
+        f += 2;
+      }
+    }
+    if(patch0) {
+      if(e) {
+        f += 1;
+      }
+    }
+    if(!patch1 && !patch2) {
+      return e;
+    }
+    if(patch2) {
+      return g;
+    }
+    if(patch1) {
+      return f;
+    }
+  }
 }

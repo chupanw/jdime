@@ -49,7 +49,7 @@ public class NASTMerge {
     private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
         if (StmtIterator.isMethod(curNode)) {
             MethodDecl mtdDecl = (MethodDecl) curNode.getASTNode();
-            mtdNames.add(mtdDecl.getID());
+            mtdNames.add(mtdDecl.signature());
         }
         for (int i = 0; i < curNode.getNumChildren(); i++) {
             getMethods(mtdNames, curNode.getChild(i));
@@ -61,7 +61,7 @@ public class NASTMerge {
             HashSet<String> names = new HashSet<>();
             getMethods(names, astArray.get(i));
             if (!names.equals(mtdNames)) {
-                System.out.println("WARNING: Methods do not match in patch " + i);
+                System.err.println("WARNING: Methods do not match in patch " + i);
             }
         }
     }
@@ -83,6 +83,8 @@ public class NASTMerge {
             applyDel(mtd);
             collectAdd(mtd);
             applyAdd(mtd);
+            delMap.clear();
+            addMap.clear();
         }
 
         try {
@@ -361,7 +363,7 @@ public class NASTMerge {
 
     private ASTNode getMethodDecl(ASTNode cur, String mtdName) {
         if (cur instanceof MethodDecl) {
-            if (((MethodDecl) cur).getID().equals(mtdName)){
+            if (((MethodDecl) cur).signature().equals(mtdName)){
                 return cur;
             }
         }
