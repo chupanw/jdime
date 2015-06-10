@@ -10,7 +10,7 @@ import java.util.ArrayList;
 public class GenProg {
 
     public static void main(String[] args) {
-        String srcDir = "/Users/chupanw/Projects/VarexJPatch/output-for-chupan/math-issue-280/src/java/";
+        String srcDir = "/Users/chupanw/Projects/VarexJPatch/output-for-chupan/default";
         String patchDir = "/Users/chupanw/Projects/VarexJPatch/output-for-chupan/variants/";
         ArrayList<String> files = new ArrayList<>();
 
@@ -24,7 +24,7 @@ public class GenProg {
 
         int count = 0;
         ArrayList<File> patchArray = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 138; i < 139; i++) {
             File patchFile = new File(patchDir + "variant-" + i + files.get(0));
             if (patchFile.exists()) {
                 patchArray.add(patchFile);

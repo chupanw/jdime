@@ -58,7 +58,8 @@ public class StmtIterator {
     private ASTNodeArtifact getMethod(ASTNodeArtifact cur) {
         if (isMethod(cur)) {
             MethodDecl mtdDecl = (MethodDecl) cur.getASTNode();
-            if (mtdDecl.signature().equals(mtdName)) {
+            String signature = mtdDecl.getModifiers().prettyPrint() + " " + mtdDecl.getTypeAccess().prettyPrint() + " " + mtdDecl.signature();
+            if (signature.equals(mtdName)) {
                 return cur;
             }
         }

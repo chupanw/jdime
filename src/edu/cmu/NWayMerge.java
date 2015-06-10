@@ -41,7 +41,7 @@ public class NWayMerge {
             contexts[i].setInputFiles(list);
             contexts[i].setMergeStrategy(MergeStrategy.parse("structured"));
             de.fosd.jdime.Main.merge(contexts[i]);
-            System.out.println("Diff patch " + i + "finished");
+            System.out.println("Diff patch " + i + " finished");
             diffArray.add(contexts[i].getDiffResult());
         }
         ASTNodeArtifact baseAST = new ASTNodeArtifact(new FileArtifact(baseFile));

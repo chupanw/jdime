@@ -18,7 +18,7 @@ import java.util.*;
 public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
     private ASTNode baseAST;
-    // insertLoc -> instruction set
+    // To-be-delete statement location -> instruction set
     private HashMap<Integer, HashSet<Integer>> delMap;
     // insertLoc -> patchNum -> StmtList
     private HashMap<Integer, HashMap<Integer, ArrayList<ASTNode>>> addMap;
@@ -29,12 +29,18 @@ public class NASTMerge {
         this.addMap = new HashMap<>();
         this.astArray = astArray;
         this.baseAST = base.getASTNode();
-        this.delMap = new HashMap<>();
         this.mtdNames = new HashSet<>();
 
         getMethods(mtdNames, base);
         checkMtds();
         rebuildASTs();
+        //debug
+        System.out.println(baseAST.prettyPrint());
+        try {
+            GraphvizGenerator.toPDF(baseAST, "baseTree");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         for (int i = 0; i < astArray.size(); i++) {
             ASTNodeArtifact ast = astArray.get(i);
             try {
@@ -44,12 +50,14 @@ public class NASTMerge {
                 e.printStackTrace();
             }
         }
+        //end debug
     }
 
     private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
         if (StmtIterator.isMethod(curNode)) {
             MethodDecl mtdDecl = (MethodDecl) curNode.getASTNode();
-            mtdNames.add(mtdDecl.signature());
+            String mtdSignature = mtdDecl.getModifiers().prettyPrint() + " " + mtdDecl.getTypeAccess().prettyPrint() + " " + mtdDecl.signature();
+            mtdNames.add(mtdSignature);
         }
         for (int i = 0; i < curNode.getNumChildren(); i++) {
             getMethods(mtdNames, curNode.getChild(i));
@@ -79,6 +87,7 @@ public class NASTMerge {
         Iterator<String> mtdItr = mtdNames.iterator();
         while (mtdItr.hasNext()) {
             String mtd = mtdItr.next();
+            System.out.println(mtd);
             collectDel(mtd);
             applyDel(mtd);
             collectAdd(mtd);
@@ -87,12 +96,16 @@ public class NASTMerge {
             addMap.clear();
         }
 
+        //debug
         try {
             GraphvizGenerator.toPDF(baseAST, "merged");
         } catch (IOException e) {
             e.printStackTrace();
         }
         System.out.println(baseAST.prettyPrint());
+        //end debug
+
+        // For JUnit testing
         File testOutput = new File("testOutput");
         if (testOutput.exists()) {
             try {
@@ -234,7 +247,9 @@ public class NASTMerge {
             if (isConflict(cur)) {
                 ASTNodeArtifact parent = cur.getParent();
                 int index = parent.getChildren().indexOf(cur);
-                ASTNodeArtifact cloneNode = clone(cur);
+//                ASTNodeArtifact cloneNode = clone(cur);
+                ASTNodeArtifact cloneNode = extractDel(cur);
+                removeDel(cur);
                 parent.getChildren().add(index, cloneNode);
             }
         } else {
@@ -244,71 +259,124 @@ public class NASTMerge {
         }
     }
 
-    private ASTNodeArtifact clone(ASTNodeArtifact node) {
-        ASTNode cloneNodeAST = null;
-        try {
-            cloneNodeAST = node.getASTNode().clone();
-        } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
+    private ASTNodeArtifact extractDel(ASTNodeArtifact nodeArt) {
+        if (nodeArt.isAdded()){
+            return null;
         }
-        ASTNodeArtifact cloneNode = new ASTNodeArtifact(cloneNodeAST);
-        ArtifactList<ASTNodeArtifact> cloneChildren;
-        ASTNode[] cloneChildrenAST;
-        // Assume that original node represents Add
-        node.setAdded();
-        cloneNode.setDeleted();
-        boolean conflict = false;
-        if (hasAddedChild(node) && hasDeletedChild(node)) {
-            conflict = true;
-        }
-        if (conflict) {
-            cloneChildren = new ArtifactList<>();
-            cloneChildrenAST = new ASTNode[countDeletedChildren(node)];
-            int cloneChildrenIndex = 0;
-            for (ASTNodeArtifact child : node.getChildren()) {
-                if (child.isDeleted()) {
-                    ASTNodeArtifact cloneChild = clone(child);
-                    ASTNode cloneChildAST = cloneChild.getASTNode();
-                    cloneChild.setParent(cloneNode);
-                    cloneChildAST.setParent(cloneNode.getASTNode());
-                    cloneChildren.add(cloneChild);
-                    cloneChildrenAST[cloneChildrenIndex] = cloneChildAST;
-                    cloneChildrenIndex++;
+        else {
+            ASTNode cloneNode = null;
+            try {
+                cloneNode = nodeArt.getASTNode().clone();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+            ASTNodeArtifact cloneNodeArt = new ASTNodeArtifact(cloneNode);
+            cloneNodeArt.setDeleted();
+            ArtifactList<ASTNodeArtifact> cloneChildrenArt = new ArtifactList<>();
+            for (ASTNodeArtifact child : nodeArt.getChildren()) {
+                ASTNodeArtifact art = extractDel(child);
+                if (art != null) {
+                    cloneChildrenArt.add(art);
                 }
             }
-            cloneNode.setChildren(cloneChildren);
-            cloneNode.getASTNode().setChildren(cloneChildrenAST);
-            boolean hasDel = true;
-            while (hasDel) {
-                hasDel = false;
-                for (ASTNodeArtifact child : node.getChildren()) {
-                    if (child.isDeleted()) {
-                        int index = node.getChildren().indexOf(child);
-                        node.getASTNode().removeChild(index);
-                        node.removeChild(child);
-                        hasDel = true;
-                        break;
-                    }
-                }
-            }
-        } else {
-            cloneChildren = new ArtifactList<>();
-            cloneChildrenAST = new ASTNode[node.getNumChildren()];
-            for (int i = 0; i < node.getNumChildren(); i++) {
-                ASTNodeArtifact child = node.getChild(i);
-                ASTNodeArtifact cloneChild = clone(child);
-                // Assume that cloneNode represent Delete
-                ASTNode cloneChildAST = cloneChild.getASTNode();
-                cloneChild.setParent(cloneNode);
-                cloneChildAST.setParent(cloneNode.getASTNode());
-                cloneChildren.add(cloneChild);
-                cloneChildrenAST[i] = cloneChildAST;
+            ASTNode[] cloneChildren = new ASTNode[cloneChildrenArt.size()];
+            for (int i = 0; i < cloneChildrenArt.size(); i++) {
+                cloneChildrenArt.get(i).setParent(cloneNodeArt);
+                cloneChildrenArt.get(i).getASTNode().setParent(cloneNode);
+                cloneChildren[i] = cloneChildrenArt.get(i).getASTNode();
             }
             cloneNode.setChildren(cloneChildren);
-            cloneNode.getASTNode().setChildren(cloneChildrenAST);
+            cloneNodeArt.setChildren(cloneChildrenArt);
+            return cloneNodeArt;
         }
-        return cloneNode;
     }
+
+    private void removeDel(ASTNodeArtifact nodeArt) {
+        nodeArt.setAdded();
+        boolean hasDel = true;
+        while (hasDel) {
+            hasDel = false;
+            for (ASTNodeArtifact child : nodeArt.getChildren()) {
+                if (child.isDeleted()) {
+                    ASTNode cld = child.getASTNode();
+                    int index = child.getASTNode().getParent().getIndexOfChild(cld);
+                    child.getASTNode().getParent().removeChild(index);
+                    nodeArt.removeChild(child);
+                    hasDel = true;
+                    break;
+                }
+            }
+        }
+        for (ASTNodeArtifact child : nodeArt.getChildren()) {
+            removeDel(child);
+        }
+    }
+
+//    private ASTNodeArtifact clone(ASTNodeArtifact node) {
+//        ASTNode cloneNodeAST = null;
+//        try {
+//            cloneNodeAST = node.getASTNode().clone();
+//        } catch (CloneNotSupportedException e) {
+//            e.printStackTrace();
+//        }
+//        ASTNodeArtifact cloneNode = new ASTNodeArtifact(cloneNodeAST);
+//        ArtifactList<ASTNodeArtifact> cloneChildren;
+//        ASTNode[] cloneChildrenAST;
+//        // Assume that original node represents Add
+//        node.setAdded();
+//        cloneNode.setDeleted();
+//        boolean conflict = false;
+//        if (hasAddedChild(node) && hasDeletedChild(node)) {
+//            conflict = true;
+//        }
+//        if (conflict) {
+//            cloneChildren = new ArtifactList<>();
+//            cloneChildrenAST = new ASTNode[countDeletedChildren(node)];
+//            int cloneChildrenIndex = 0;
+//            for (ASTNodeArtifact child : node.getChildren()) {
+//                if (child.isDeleted()) {
+//                    ASTNodeArtifact cloneChild = clone(child);
+//                    ASTNode cloneChildAST = cloneChild.getASTNode();
+//                    cloneChild.setParent(cloneNode);
+//                    cloneChildAST.setParent(cloneNode.getASTNode());
+//                    cloneChildren.add(cloneChild);
+//                    cloneChildrenAST[cloneChildrenIndex] = cloneChildAST;
+//                    cloneChildrenIndex++;
+//                }
+//            }
+//            cloneNode.setChildren(cloneChildren);
+//            cloneNode.getASTNode().setChildren(cloneChildrenAST);
+//            boolean hasDel = true;
+//            while (hasDel) {
+//                hasDel = false;
+//                for (ASTNodeArtifact child : node.getChildren()) {
+//                    if (child.isDeleted()) {
+//                        int index = node.getChildren().indexOf(child);
+//                        node.getASTNode().removeChild(index);
+//                        node.removeChild(child);
+//                        hasDel = true;
+//                        break;
+//                    }
+//                }
+//            }
+//        } else {
+//            cloneChildren = new ArtifactList<>();
+//            cloneChildrenAST = new ASTNode[node.getNumChildren()];
+//            for (int i = 0; i < node.getNumChildren(); i++) {
+//                ASTNodeArtifact child = node.getChild(i);
+//                ASTNodeArtifact cloneChild = clone(child);
+//                // Assume that cloneNode represent Delete
+//                ASTNode cloneChildAST = cloneChild.getASTNode();
+//                cloneChild.setParent(cloneNode);
+//                cloneChildAST.setParent(cloneNode.getASTNode());
+//                cloneChildren.add(cloneChild);
+//                cloneChildrenAST[i] = cloneChildAST;
+//            }
+//            cloneNode.setChildren(cloneChildren);
+//            cloneNode.getASTNode().setChildren(cloneChildrenAST);
+//        }
+//        return cloneNode;
+//    }
 
     private boolean isConflict(ASTNodeArtifact cur) {
         boolean conflict = false;
@@ -363,7 +431,9 @@ public class NASTMerge {
 
     private ASTNode getMethodDecl(ASTNode cur, String mtdName) {
         if (cur instanceof MethodDecl) {
-            if (((MethodDecl) cur).signature().equals(mtdName)){
+            MethodDecl mtdDecl = (MethodDecl) cur;
+            String mtdSignature = mtdDecl.getModifiers().prettyPrint() + " " + mtdDecl.getTypeAccess().prettyPrint() + " " + mtdDecl.signature();
+            if (mtdSignature.equals(mtdName)){
                 return cur;
             }
         }
