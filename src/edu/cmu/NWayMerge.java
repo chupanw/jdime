@@ -24,7 +24,7 @@ public class NWayMerge {
         this.patchFiles = patchesFile;
         this.diffArray = new ArrayList<>();
         BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.ERROR);
+        Logger.getRootLogger().setLevel(Level.WARN);
     }
 
     public void merge() throws IOException, InterruptedException {

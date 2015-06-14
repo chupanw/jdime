@@ -24,7 +24,7 @@ public class GenProg {
 
         int count = 0;
         ArrayList<File> patchArray = new ArrayList<>();
-        for (int i = 138; i < 139; i++) {
+        for (int i = 0; i < 2000; i++) {
             File patchFile = new File(patchDir + "variant-" + i + files.get(0));
             if (patchFile.exists()) {
                 patchArray.add(patchFile);

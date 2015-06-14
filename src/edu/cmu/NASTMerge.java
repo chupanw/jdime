@@ -5,6 +5,8 @@ import AST.List;
 import de.fosd.jdime.common.ASTNodeArtifact;
 import de.fosd.jdime.common.ArtifactList;
 import edu.cmu.utility.GraphvizGenerator;
+import org.apache.commons.lang3.ClassUtils;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -23,6 +25,8 @@ public class NASTMerge {
     // insertLoc -> patchNum -> StmtList
     private HashMap<Integer, HashMap<Integer, ArrayList<ASTNode>>> addMap;
     private HashSet<String> mtdNames;
+    private static final Logger LOG = Logger.getLogger(ClassUtils
+            .getShortClassName(NASTMerge.class));
 
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
         this.delMap = new HashMap<>();
@@ -34,23 +38,22 @@ public class NASTMerge {
         getMethods(mtdNames, base);
         checkMtds();
         rebuildASTs();
-        //debug
-        System.out.println(baseAST.prettyPrint());
-        try {
-            GraphvizGenerator.toPDF(baseAST, "baseTree");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        for (int i = 0; i < astArray.size(); i++) {
-            ASTNodeArtifact ast = astArray.get(i);
+        if (LOG.isInfoEnabled()) {
             try {
-                int patchNum = i;
-                GraphvizGenerator.toPDF(ast, "diff" + patchNum);
+                GraphvizGenerator.toPDF(baseAST, "baseTree");
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            for (int i = 0; i < astArray.size(); i++) {
+                ASTNodeArtifact ast = astArray.get(i);
+                try {
+                    int patchNum = i;
+                    GraphvizGenerator.toPDF(ast, "diff" + patchNum);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        //end debug
     }
 
     private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
@@ -87,7 +90,7 @@ public class NASTMerge {
         Iterator<String> mtdItr = mtdNames.iterator();
         while (mtdItr.hasNext()) {
             String mtd = mtdItr.next();
-            System.out.println(mtd);
+            LOG.info(mtd);
             collectDel(mtd);
             applyDel(mtd);
             collectAdd(mtd);
@@ -96,14 +99,14 @@ public class NASTMerge {
             addMap.clear();
         }
 
-        //debug
-        try {
-            GraphvizGenerator.toPDF(baseAST, "merged");
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (LOG.isInfoEnabled()) {
+            try {
+                GraphvizGenerator.toPDF(baseAST, "merged");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         System.out.println(baseAST.prettyPrint());
-        //end debug
 
         // For JUnit testing
         File testOutput = new File("testOutput");
@@ -220,12 +223,14 @@ public class NASTMerge {
                     cond = new AndLogicalExpr(cond, notExpr);
                 }
             }
+            // Must remove first because removeChild() changes the childIndex field to -1,
+            //  which may later cause NullPointerException
             List<Stmt> bodyList = new List<Stmt>();
             Stmt origStmt = (Stmt) astList.getChild(pos);
+            astList.removeChild(pos);
             bodyList.add(origStmt);
             Block thenBody = new Block(bodyList);
             IfStmt ifStmt = new IfStmt(cond, thenBody);
-            astList.removeChild(pos);
             astList.insertChild(ifStmt, pos);
             ifStmt.setParent(astList);
             origStmt.setParent(bodyList);
