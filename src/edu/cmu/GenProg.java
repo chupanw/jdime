@@ -20,28 +20,33 @@ public class GenProg {
         files.add("/org/apache/commons/math/special/Erf.java");
         files.add("/org/apache/commons/math/special/Gamma.java");
 
-        File baseFile = new File(srcDir + files.get(0));
+        for (int i = 1; i < files.size(); i++) {
+            File baseFile = new File(srcDir + files.get(i));
 
-        int count = 0;
-        ArrayList<File> patchArray = new ArrayList<>();
-        for (int i = 0; i < 2000; i++) {
-            File patchFile = new File(patchDir + "variant-" + i + files.get(0));
-            if (patchFile.exists()) {
-                patchArray.add(patchFile);
-                count++;
+            int count = 0;
+            ArrayList<File> patchArray = new ArrayList<>();
+            ArrayList<Integer> patchNumArray = new ArrayList<>();
+            for (int j = 0; j < 2000; j++) {
+                File patchFile = new File(patchDir + "variant-" + j + files.get(i));
+                if (patchFile.exists()) {
+                    patchArray.add(patchFile);
+                    patchNumArray.add(j);
+                    count++;
+                }
+            }
+
+            File[] patchFiles = new File[count];
+            patchArray.toArray(patchFiles);
+
+            NWayMerge merger = new NWayMerge(baseFile, patchFiles, patchNumArray);
+            try {
+                merger.merge();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
 
-        File[] patchFiles = new File[count];
-        patchArray.toArray(patchFiles);
-
-        NWayMerge merger = new NWayMerge(baseFile, patchFiles);
-        try {
-            merger.merge();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 }

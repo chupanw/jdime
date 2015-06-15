@@ -19,6 +19,7 @@ import java.util.*;
  */
 public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
+    private ArrayList<Integer> patchNumArray;
     private ASTNode baseAST;
     // To-be-delete statement location -> instruction set
     private HashMap<Integer, HashSet<Integer>> delMap;
@@ -28,12 +29,28 @@ public class NASTMerge {
     private static final Logger LOG = Logger.getLogger(ClassUtils
             .getShortClassName(NASTMerge.class));
 
+
+    public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base, ArrayList<Integer> patchNumArray) {
+        this.delMap = new HashMap<>();
+        this.addMap = new HashMap<>();
+        this.astArray = astArray;
+        this.baseAST = base.getASTNode();
+        this.mtdNames = new HashSet<>();
+        this.patchNumArray = patchNumArray;
+
+        getMethods(mtdNames, base);
+        checkMtds();
+        rebuildASTs();
+    }
+
+
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
         this.delMap = new HashMap<>();
         this.addMap = new HashMap<>();
         this.astArray = astArray;
         this.baseAST = base.getASTNode();
         this.mtdNames = new HashSet<>();
+        this.patchNumArray = null;
 
         getMethods(mtdNames, base);
         checkMtds();
@@ -83,7 +100,12 @@ public class NASTMerge {
         for (int i = 0; i < num; i++) {
             ASTNodeArtifact astArtifact = astArray.get(i);
             if (astArtifact.hasChanges()) {
-                addConditional(i);
+                if (patchNumArray == null) {
+                    addConditional(i);
+                }
+                else {
+                    addConditional(patchNumArray.get(i));
+                }
             }
         }
 
@@ -132,8 +154,15 @@ public class NASTMerge {
             HashMap<Integer, ArrayList<ASTNode>> m = addMap.get(insertLoc);
             Iterator<Integer> iter = m.keySet().iterator();
             while (iter.hasNext()) {
-                int patchNum = iter.next();
-                ArrayList<ASTNode> instList = m.get(patchNum);
+                int pos = iter.next();
+                int patchNum;
+                if (patchNumArray != null) {
+                    patchNum = patchNumArray.get(pos);
+                }
+                else{
+                    patchNum = pos;
+                }
+                ArrayList<ASTNode> instList = m.get(pos);
                 Expr cond = new VarAccess("patch" + patchNum);
                 List<Stmt> bodyList = new List<>();
                 for (int j = 0; j < instList.size(); j++) {
@@ -214,6 +243,9 @@ public class NASTMerge {
             Expr cond = null;
             while (patchIter.hasNext()) {
                 Integer patchNum = patchIter.next();
+                if (patchNumArray != null) {
+                    patchNum = patchNumArray.get(patchNum);
+                }
                 if (isFirst) {
                     cond = new LogNotExpr(new VarAccess("patch" + patchNum));
                     isFirst = false;
