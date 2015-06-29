@@ -55,22 +55,6 @@ public class NASTMerge {
         getMethods(mtdNames, base);
         checkMtds();
         rebuildASTs();
-        if (LOG.isInfoEnabled()) {
-            try {
-                GraphvizGenerator.toPDF(baseAST, "baseTree");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            for (int i = 0; i < astArray.size(); i++) {
-                ASTNodeArtifact ast = astArray.get(i);
-                try {
-                    int patchNum = i;
-                    GraphvizGenerator.toPDF(ast, "diff" + patchNum);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
     }
 
     private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
@@ -146,6 +130,9 @@ public class NASTMerge {
     private void applyAdd(String mtdName) {
         ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
         ASTNode astList = getInstList(astMethodDecl);
+        if (astList == null) {
+            return;
+        }
         Set<Integer> keySet = addMap.keySet();
         ArrayList<Integer> list = new ArrayList<>(keySet);
         Collections.sort(list);
@@ -234,6 +221,9 @@ public class NASTMerge {
     private void applyDel(String mtdName) {
         ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
         ASTNode astList = getInstList(astMethodDecl);
+        if (astList == null) {
+            return;
+        }
         Iterator<Integer> posIter = delMap.keySet().iterator();
         while (posIter.hasNext()) {
             int pos = posIter.next();
@@ -474,12 +464,10 @@ public class NASTMerge {
                 return cur;
             }
         }
-        else{
-            for (int i = 0; i < cur.getNumChild(); i++) {
-                ASTNode ret = getMethodDecl(cur.getChild(i), mtdName);
-                if (ret != null) {
-                    return ret;
-                }
+        for (int i = 0; i < cur.getNumChild(); i++) {
+            ASTNode ret = getMethodDecl(cur.getChild(i), mtdName);
+            if (ret != null) {
+                return ret;
             }
         }
         return null;
@@ -489,6 +477,11 @@ public class NASTMerge {
         int numChildren = methodDecl.getNumChild();
         ASTNode astOPT = methodDecl.getChild(numChildren - 1);
         assert (astOPT instanceof Opt);
+        // If there is no method body
+        if (astOPT.getNumChild() == 0) {
+            return null;
+        }
+        // otherwise, OPT node should have exactly one child
         assert (astOPT.getNumChild() == 1);
         ASTNode astBlock = astOPT.getChild(0);
         assert (astBlock instanceof Block);
@@ -538,6 +531,10 @@ public class NASTMerge {
         fieldDeclaration.setParent(bodyDeclList);
         bodyDeclList.insertChild(fieldDeclaration, 0);
 
+    }
+
+    public String getResult() {
+        return baseAST.prettyPrint();
     }
 
 }

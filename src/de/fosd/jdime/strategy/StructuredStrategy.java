@@ -174,86 +174,86 @@ public class StructuredStrategy extends MergeStrategy<FileArtifact> {
 						}
 					}
 
-					if (!context.isDiffOnly()) {
-						try (
-								// process input stream
-								BufferedReader buf = new BufferedReader(new StringReader(targetNode.prettyPrint()))) {
-							boolean conflict = false;
-							boolean afterconflict = false;
-							boolean inleft = false;
-							boolean inright = false;
-
-							int tmp = 0;
-							String line;
-							StringBuffer leftlines = null;
-							StringBuffer rightlines = null;
-
-							while ((line = buf.readLine()) != null) {
-								if (line.matches("^$") || line.matches("^\\s*$")) {
-									// skip empty lines
-									if (!conflict && !afterconflict) {
-										mergeContext.appendLine(line);
-									}
-									continue;
-								}
-
-								if (line.matches("^\\s*<<<<<<<.*")) {
-									conflict = true;
-									tmp = cloc;
-									conflicts++;
-									inleft = true;
-
-									if (!afterconflict) {
-										// new conflict or new chain of
-										// conflicts
-										leftlines = new StringBuffer();
-										rightlines = new StringBuffer();
-									} else {
-										// is directly after a previous conflict
-										// lets merge them
-										conflicts--;
-									}
-								} else if (line.matches("^\\s*=======.*")) {
-									inleft = false;
-									inright = true;
-								} else if (line.matches("^\\s*>>>>>>>.*")) {
-									conflict = false;
-									afterconflict = true;
-									if (tmp == cloc) {
-										// only empty lines
-										conflicts--;
-									}
-									inright = false;
-								} else {
-									loc++;
-									if (conflict) {
-										cloc++;
-										if (inleft) {
-											assert (leftlines != null);
-											leftlines.append(line).append(System.lineSeparator());
-										} else if (inright) {
-											assert (rightlines != null);
-											rightlines.append(line).append(System.lineSeparator());
-										}
-									} else {
-										if (afterconflict) {
-											assert (leftlines != null);
-											assert (rightlines != null);
-											// need to print the previous
-											// conflict(s)
-											mergeContext.appendLine("<<<<<<< " + lPath);
-											mergeContext.append(leftlines.toString());
-											mergeContext.appendLine("=======");
-											mergeContext.append(rightlines.toString());
-											mergeContext.appendLine(">>>>>>> " + rPath);
-										}
-										afterconflict = false;
-										mergeContext.appendLine(line);
-									}
-								}
-							}
-						}
-					}
+//					if (!context.isDiffOnly()) {
+//						try (
+//								// process input stream
+//								BufferedReader buf = new BufferedReader(new StringReader(targetNode.prettyPrint()))) {
+//							boolean conflict = false;
+//							boolean afterconflict = false;
+//							boolean inleft = false;
+//							boolean inright = false;
+//
+//							int tmp = 0;
+//							String line;
+//							StringBuffer leftlines = null;
+//							StringBuffer rightlines = null;
+//
+//							while ((line = buf.readLine()) != null) {
+//								if (line.matches("^$") || line.matches("^\\s*$")) {
+//									// skip empty lines
+//									if (!conflict && !afterconflict) {
+//										mergeContext.appendLine(line);
+//									}
+//									continue;
+//								}
+//
+//								if (line.matches("^\\s*<<<<<<<.*")) {
+//									conflict = true;
+//									tmp = cloc;
+//									conflicts++;
+//									inleft = true;
+//
+//									if (!afterconflict) {
+//										// new conflict or new chain of
+//										// conflicts
+//										leftlines = new StringBuffer();
+//										rightlines = new StringBuffer();
+//									} else {
+//										// is directly after a previous conflict
+//										// lets merge them
+//										conflicts--;
+//									}
+//								} else if (line.matches("^\\s*=======.*")) {
+//									inleft = false;
+//									inright = true;
+//								} else if (line.matches("^\\s*>>>>>>>.*")) {
+//									conflict = false;
+//									afterconflict = true;
+//									if (tmp == cloc) {
+//										// only empty lines
+//										conflicts--;
+//									}
+//									inright = false;
+//								} else {
+//									loc++;
+//									if (conflict) {
+//										cloc++;
+//										if (inleft) {
+//											assert (leftlines != null);
+//											leftlines.append(line).append(System.lineSeparator());
+//										} else if (inright) {
+//											assert (rightlines != null);
+//											rightlines.append(line).append(System.lineSeparator());
+//										}
+//									} else {
+//										if (afterconflict) {
+//											assert (leftlines != null);
+//											assert (rightlines != null);
+//											// need to print the previous
+//											// conflict(s)
+//											mergeContext.appendLine("<<<<<<< " + lPath);
+//											mergeContext.append(leftlines.toString());
+//											mergeContext.appendLine("=======");
+//											mergeContext.append(rightlines.toString());
+//											mergeContext.appendLine(">>>>>>> " + rPath);
+//										}
+//										afterconflict = false;
+//										mergeContext.appendLine(line);
+//									}
+//								}
+//							}
+//						}
+//					}
 				}
 
 				long runtime = System.currentTimeMillis() - cmdStart;

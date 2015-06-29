@@ -18,6 +18,7 @@ public class NWayMerge {
     private File baseFile;
     private File[] patchFiles;
     private ArrayList<Integer> patchNumArray;
+    private String output;
     ArrayList<ASTNodeArtifact> diffArray;
 
     public NWayMerge(File baseFile, File[] patchesFile) {
@@ -35,7 +36,7 @@ public class NWayMerge {
         this.patchNumArray = patchNumArray;
         this.diffArray = new ArrayList<>();
         BasicConfigurator.configure();
-        Logger.getRootLogger().setLevel(Level.INFO);
+        Logger.getRootLogger().setLevel(Level.WARN);
     }
 
     public void merge() throws IOException, InterruptedException {
@@ -58,5 +59,10 @@ public class NWayMerge {
         ASTNodeArtifact baseAST = new ASTNodeArtifact(new FileArtifact(baseFile));
         NASTMerge multiMerger = new NASTMerge(diffArray, baseAST, patchNumArray);
         multiMerger.merge();
+        this.output = multiMerger.getResult();
+    }
+
+    public String getResult() {
+        return output;
     }
 }

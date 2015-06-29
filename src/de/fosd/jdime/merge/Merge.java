@@ -31,6 +31,7 @@ import de.fosd.jdime.common.ASTNodeArtifact;
 import de.fosd.jdime.common.Artifact;
 import de.fosd.jdime.common.MergeContext;
 import de.fosd.jdime.common.MergeTriple;
+import de.fosd.jdime.common.operations.AddOperation;
 import de.fosd.jdime.common.operations.ConflictOperation;
 import de.fosd.jdime.common.operations.DeleteOperation;
 import de.fosd.jdime.common.operations.MergeOperation;
@@ -157,9 +158,11 @@ public class Merge<T extends Artifact<T>> implements MergeInterface<T> {
 						LOG.trace(prefix(right) + "has changes in subtree");
 					}
 					for (T rightChild : right.getChildren()) {
-						ConflictOperation<T> conflictOp = new ConflictOperation<>(
-								rightChild, null, rightChild, target);
-						conflictOp.apply(context);
+//						ConflictOperation<T> conflictOp = new ConflictOperation<>(
+//								rightChild, null, rightChild, target);
+//						conflictOp.apply(context);
+						AddOperation<T> addOp = new AddOperation<>(rightChild, target, false);
+						addOp.apply(context);
 					}
 					return;
 				} else {
@@ -181,9 +184,13 @@ public class Merge<T extends Artifact<T>> implements MergeInterface<T> {
 						LOG.trace(prefix(left) + " has changes in subtree");
 					}
 					for (T leftChild : left.getChildren()) {
-						ConflictOperation<T> conflictOp = new ConflictOperation<>(
-								leftChild, leftChild, null, target);
-						conflictOp.apply(context);
+//						ConflictOperation<T> conflictOp = new ConflictOperation<>(
+//								leftChild, leftChild, null, target);
+//						conflictOp.apply(context);
+						DeleteOperation<T> delOp = new DeleteOperation<>(
+								leftChild, target);
+						delOp.apply(context);
+
 					}
 					return;
 				} else {

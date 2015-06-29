@@ -63,12 +63,10 @@ public class StmtIterator {
                 return cur;
             }
         }
-        else{
-            for (int i = 0; i < cur.getNumChildren(); i++) {
-                ASTNodeArtifact astNode = getMethod(cur.getChild(i));
-                if (astNode != null) {
-                    return astNode;
-                }
+        for (int i = 0; i < cur.getNumChildren(); i++) {
+            ASTNodeArtifact astNode = getMethod(cur.getChild(i));
+            if (astNode != null) {
+                return astNode;
             }
         }
         return null;
