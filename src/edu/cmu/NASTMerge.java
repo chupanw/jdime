@@ -21,10 +21,11 @@ public class NASTMerge {
     private ArrayList<ASTNodeArtifact> astArray;
     private ArrayList<Integer> patchNumArray;
     private ASTNode baseAST;
-    // To-be-delete statement location -> instruction set
-    private HashMap<Integer, HashSet<Integer>> delMap;
-    // insertLoc -> patchNum -> StmtList
-    private HashMap<Integer, HashMap<Integer, ArrayList<ASTNode>>> addMap;
+    // To-be-delete node -> patch set
+    private HashMap<ASTNode, HashSet<Integer>> delMap;
+    // To-be-insert node -> patchNum -> StmtList
+    private HashMap<ASTNodeArtifact, HashMap<Integer, ArrayList<ASTNode>>> addMap;
+    private HashMap<ASTNodeArtifact, Integer> patchNumMap;
     private HashSet<String> mtdNames;
     private static final Logger LOG = Logger.getLogger(ClassUtils
             .getShortClassName(NASTMerge.class));
@@ -33,6 +34,7 @@ public class NASTMerge {
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base, ArrayList<Integer> patchNumArray) {
         this.delMap = new HashMap<>();
         this.addMap = new HashMap<>();
+        this.patchNumMap = new HashMap<>();
         this.astArray = astArray;
         this.baseAST = base.getASTNode();
         this.mtdNames = new HashSet<>();
@@ -47,6 +49,7 @@ public class NASTMerge {
     public NASTMerge(ArrayList<ASTNodeArtifact> astArray, ASTNodeArtifact base) {
         this.delMap = new HashMap<>();
         this.addMap = new HashMap<>();
+        this.patchNumMap = new HashMap<>();
         this.astArray = astArray;
         this.baseAST = base.getASTNode();
         this.mtdNames = new HashSet<>();
@@ -55,6 +58,12 @@ public class NASTMerge {
         getMethods(mtdNames, base);
         checkMtds();
         rebuildASTs();
+        try {
+            GraphvizGenerator.toPDF(this.astArray.get(2), "patch2_noRebuild");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void getMethods(HashSet<String> mtdNames, ASTNodeArtifact curNode) {
@@ -98,7 +107,7 @@ public class NASTMerge {
             String mtd = mtdItr.next();
             LOG.info(mtd);
             collectDel(mtd);
-            applyDel(mtd);
+            applyDel();
             collectAdd(mtd);
             applyAdd(mtd);
             delMap.clear();
@@ -111,6 +120,12 @@ public class NASTMerge {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+
+        try {
+            GraphvizGenerator.toPDF(baseAST, "result");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
         System.out.println(baseAST.prettyPrint());
 
@@ -128,70 +143,104 @@ public class NASTMerge {
     }
 
     private void applyAdd(String mtdName) {
-        ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
-        ASTNode astList = getInstList(astMethodDecl);
-        if (astList == null) {
-            return;
-        }
-        Set<Integer> keySet = addMap.keySet();
-        ArrayList<Integer> list = new ArrayList<>(keySet);
-        Collections.sort(list);
-        for (int i = list.size() - 1; i >= 0; i--) {
-            int insertLoc = list.get(i);
-            HashMap<Integer, ArrayList<ASTNode>> m = addMap.get(insertLoc);
-            Iterator<Integer> iter = m.keySet().iterator();
-            while (iter.hasNext()) {
-                int pos = iter.next();
-                int patchNum;
-                if (patchNumArray != null) {
-                    patchNum = patchNumArray.get(pos);
+        // AST.List -> index of adding node -> adding node
+        HashMap<ASTNode, HashMap<Integer, ArrayList<ASTNodeArtifact>>> levelMap = new HashMap<>();
+        Iterator<ASTNodeArtifact> nodeIter = addMap.keySet().iterator();
+        while (nodeIter.hasNext()) {
+            ASTNodeArtifact node = nodeIter.next();
+
+            try {
+                ASTNodeArtifact listNodeArt = StmtIterator.getNearestList(node);
+                if (listNodeArt.isAdded()) {
+                    continue;
                 }
-                else{
-                    patchNum = pos;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            ASTNode listNode = StmtIterator.getBaseNode(node);
+            assert listNode != null;
+            assert listNode instanceof AST.List;
+            if (levelMap.containsKey(listNode)) {
+                HashMap<Integer, ArrayList<ASTNodeArtifact>> map = levelMap.get(listNode);
+                int index = StmtIterator.getOldIndex(node);
+                if (map.containsKey(index)) {
+                    ArrayList<ASTNodeArtifact> instList = map.get(index);
+                    instList.add(node);
                 }
-                ArrayList<ASTNode> instList = m.get(pos);
-                Expr cond = new VarAccess("patch" + patchNum);
-                List<Stmt> bodyList = new List<>();
-                for (int j = 0; j < instList.size(); j++) {
-                    ASTNode inst = instList.get(j);
-                    bodyList.add((Stmt) inst);
+                else {
+                    ArrayList<ASTNodeArtifact> instList = new ArrayList<>();
+                    instList.add(node);
+                    map.put(index, instList);
                 }
-                Block bodyBlock = new Block(bodyList);
-                IfStmt ifStmt = new IfStmt(cond, bodyBlock);
-                astList.insertChild(ifStmt, insertLoc+1);
-                ifStmt.setParent(astList);
+            }
+            else {
+                HashMap<Integer, ArrayList<ASTNodeArtifact>> map = new HashMap<>();
+                int index = StmtIterator.getOldIndex(node);
+                ArrayList<ASTNodeArtifact> instList = new ArrayList<>();
+                instList.add(node);
+                map.put(index, instList);
+                levelMap.put(listNode, map);
             }
         }
+
+        Iterator<ASTNode> listIter = levelMap.keySet().iterator();
+        while (listIter.hasNext()) {
+            ASTNode listNode = listIter.next();
+            ASTNode astList = listNode;
+            Set<Integer> keySet = levelMap.get(listNode).keySet();
+            ArrayList<Integer> list = new ArrayList<>(keySet);
+            Collections.sort(list);
+            for (int i = list.size() - 1; i >= 0; i--) {
+                int insertLoc = list.get(i);
+                ArrayList<ASTNodeArtifact> instList = levelMap.get(astList).get(insertLoc);
+                for (int j = 0; j < instList.size(); j++) {
+                    int pos = patchNumMap.get(instList.get(j));
+                    int patchNum;
+                    if (patchNumArray != null) {
+                        patchNum = patchNumArray.get(pos);
+                    } else {
+                        patchNum = pos;
+                    }
+                    Expr cond = new VarAccess("patch" + patchNum);
+                    List<Stmt> bodyList = new List<>();
+                    ASTNode inst = instList.get(j).getASTNode().fullCopy();
+                    bodyList.add((Stmt) inst);
+                    Block bodyBlock = new Block(bodyList);
+                    IfStmt ifStmt = new IfStmt(cond, bodyBlock);
+                    astList.insertChild(ifStmt, insertLoc + 1);
+                    ifStmt.setParent(astList);
+                }
+            }
+        }
+
     }
 
     private void collectAdd(String mtdName) {
         for (int i = 0; i < astArray.size(); i++) {
-            StmtIterator stmtIter = new StmtIterator(astArray.get(i), mtdName);
-            int insertLoc = 0;
+            StmtIterator stmtIter = new StmtIterator(baseAST, astArray.get(i), mtdName);
             while (stmtIter.hasNext()) {
                 ASTNodeArtifact stmt = stmtIter.next();
                 if (stmt.isAdded()) {
-                    if (addMap.containsKey(insertLoc)) {
-                        HashMap<Integer, ArrayList<ASTNode>> m = addMap.get(insertLoc);
+                    patchNumMap.put(stmt, i);
+                    if (addMap.containsKey(stmt)) {
+                        HashMap<Integer, ArrayList<ASTNode>> m = addMap.get(stmt);
                         if (m.containsKey(i)) {
                             ArrayList<ASTNode> s = m.get(i);
                             s.add(stmt.getASTNode());
-                        }
-                        else {
+                        } else {
                             ArrayList<ASTNode> s = new ArrayList<>();
                             s.add(stmt.getASTNode());
                             m.put(i, s);
                         }
-                    }
-                    else {
+                    } else {
                         HashMap<Integer, ArrayList<ASTNode>> m = new HashMap<>();
                         ArrayList<ASTNode> s = new ArrayList<>();
                         s.add(stmt.getASTNode());
                         m.put(i, s);
-                        addMap.put(insertLoc, m);
+                        addMap.put(stmt, m);
                     }
                 }
-                insertLoc = stmtIter.getOldIndex(stmt);
             }
         }
     }
@@ -199,35 +248,32 @@ public class NASTMerge {
 
     private void collectDel(String mtdName){
         for (int i = 0; i < astArray.size(); i++) {
-            StmtIterator stmtIter = new StmtIterator(astArray.get(i), mtdName);
+            StmtIterator stmtIter = new StmtIterator(baseAST, astArray.get(i), mtdName);
             while (stmtIter.hasNext()) {
                 ASTNodeArtifact stmt = stmtIter.next();
+                ASTNode baseStmt = stmtIter.getBaseNode(stmt);
                 if (stmt.isDeleted()) {
-                    int oldIndex = stmtIter.getOldIndex(stmt);
-                    if (delMap.containsKey(oldIndex)) {
-                        HashSet<Integer> patchSet = delMap.get(oldIndex);
+                    // Since it is a delete stmt, this should also be in the base AST.
+                    assert baseStmt != null;
+                    if (delMap.containsKey(baseStmt)) {
+                        HashSet<Integer> patchSet = delMap.get(baseStmt);
                         patchSet.add(i);
                     }
                     else {
                         HashSet<Integer> patchSet = new HashSet<>();
                         patchSet.add(i);
-                        delMap.put(oldIndex, patchSet);
+                        delMap.put(baseStmt, patchSet);
                     }
                 }
             }
         }
     }
 
-    private void applyDel(String mtdName) {
-        ASTNode astMethodDecl = getMethodDecl(baseAST, mtdName);
-        ASTNode astList = getInstList(astMethodDecl);
-        if (astList == null) {
-            return;
-        }
-        Iterator<Integer> posIter = delMap.keySet().iterator();
-        while (posIter.hasNext()) {
-            int pos = posIter.next();
-            HashSet<Integer> patchSet = delMap.get(pos);
+    private void applyDel() {
+        Iterator<ASTNode> nodeIter = delMap.keySet().iterator();
+        while (nodeIter.hasNext()) {
+            ASTNode node = nodeIter.next();
+            HashSet<Integer> patchSet = delMap.get(node);
             Iterator<Integer> patchIter = patchSet.iterator();
             boolean isFirst = true;
             Expr cond = null;
@@ -239,12 +285,21 @@ public class NASTMerge {
                 if (isFirst) {
                     cond = new LogNotExpr(new VarAccess("patch" + patchNum));
                     isFirst = false;
-                }
-                else {
+                } else {
                     LogNotExpr notExpr = new LogNotExpr(new VarAccess("patch" + patchNum));
                     cond = new AndLogicalExpr(cond, notExpr);
                 }
             }
+            ASTNode astList = null;
+            try {
+                astList = StmtIterator.getNearestList(node);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            assert astList != null;
+            int pos = StmtIterator.getOldIndex(node);
+            assert pos != -1;
+
             // Must remove first because removeChild() changes the childIndex field to -1,
             //  which may later cause NullPointerException
             List<Stmt> bodyList = new List<Stmt>();
@@ -270,15 +325,14 @@ public class NASTMerge {
     }
 
     private void rebuildAST(ASTNodeArtifact cur) {
-        if (isStmt(cur)) {
-            if (isConflict(cur)) {
-                ASTNodeArtifact parent = cur.getParent();
-                int index = parent.getChildren().indexOf(cur);
+        if (isStmt(cur) && isConflict(cur, cur)) {
+            ASTNodeArtifact parent = cur.getParent();
+            int index = parent.getChildren().indexOf(cur);
 //                ASTNodeArtifact cloneNode = clone(cur);
-                ASTNodeArtifact cloneNode = extractDel(cur);
-                removeDel(cur);
-                parent.getChildren().add(index, cloneNode);
-            }
+            ASTNodeArtifact cloneNode = extractDel(cur);
+            removeDel(cur);
+            parent.getChildren().add(index, cloneNode);
+            cloneNode.setParent(parent);
         } else {
             for (int i = 0; i < cur.getNumChildren(); i++) {
                 rebuildAST(cur.getChild(i));
@@ -404,6 +458,33 @@ public class NASTMerge {
 //        }
 //        return cloneNode;
 //    }
+
+    private ASTNodeArtifact nearestStmtParent(ASTNodeArtifact astNode) {
+        if (isStmt(astNode)) {
+            return astNode;
+        }
+        ASTNodeArtifact parent = astNode.getParent();
+        while (!isStmt(parent)) {
+            parent = parent.getParent();
+        }
+        return parent;
+    }
+
+    private boolean isConflict(ASTNodeArtifact cur, ASTNodeArtifact stmtNode) {
+        boolean conflict = false;
+        if (hasAddedChild(cur) && hasDeletedChild(cur)) {
+            ASTNodeArtifact parent = nearestStmtParent(cur);
+            if (parent == stmtNode) {
+                return true;
+            }
+        }
+        else {
+            for (ASTNodeArtifact child : cur.getChildren()) {
+                conflict |= isConflict(child, stmtNode);
+            }
+        }
+        return conflict;
+    }
 
     private boolean isConflict(ASTNodeArtifact cur) {
         boolean conflict = false;

@@ -3,25 +3,35 @@ public class Base{
         int a = 1;
         int b = 2;
         int c;
-        a++;
-        b = a;
-        assert b == 3;
-    }
-
-    public void method1(){
-        int a;
-        int b;
-        int c;
-        System.out.println(c);
-    }
-
-    public int method1(int x){
-        int e;
-        int f;
-        int g;
-        if (e) {
-            f += 3;
+        int d;
+        d = 3;
+        c = 3;
+        if (1 + 1 > 2){
+            if (1 + 1 >3){
+                if (1 + 1 > 4){
+                    d++;
+                }
+            }
+            a++;
+            b++;
+            c++;
+            d+=2;
         }
-        return g;
+        try {
+            a = Math.sqrt(c) / d;
+        }
+        catch (Exception ex) {
+            if((Math.abs(a)) < 1.0E-6) {
+                return a;
+            }
+            if(b < 1.0E-6) {
+                return b;
+            }
+            throw new Exception(ex);
+        }
+        System.out.println(b);
+        if (1+2 == 2){
+            System.out.println(b);
+        }
     }
 }
