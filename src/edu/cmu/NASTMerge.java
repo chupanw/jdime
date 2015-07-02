@@ -103,6 +103,16 @@ public class NASTMerge {
         }
 
         Iterator<String> mtdItr = mtdNames.iterator();
+        // parseInst() in StmtIterator is used to obtain links between baseTree and patchTrees.
+        // If there are methods inside methods, changing outer methods could break the parseInst(),
+        // which requires unmodified method declaration trees.
+        while (mtdItr.hasNext()) {
+            String mtd = mtdItr.next();
+            for (int i = 0; i < astArray.size(); i++) {
+                StmtIterator stmtIter = new StmtIterator(baseAST, astArray.get(i), mtd);
+            }app
+        }
+        mtdItr = mtdNames.iterator();
         while (mtdItr.hasNext()) {
             String mtd = mtdItr.next();
             LOG.info(mtd);
@@ -150,8 +160,11 @@ public class NASTMerge {
             ASTNodeArtifact node = nodeIter.next();
 
             try {
-                ASTNodeArtifact listNodeArt = StmtIterator.getNearestList(node);
-                if (listNodeArt.isAdded()) {
+                // getParent() should be enough.
+                // In some cases, the parent is not a AST.List (instead, AST.Opt).
+                // If it is AST.Opt, exception may be thrown when trying to getNearestList()
+                ASTNodeArtifact parent = node.getParent();
+                if (parent.isAdded()) {
                     continue;
                 }
             } catch (Exception e) {
