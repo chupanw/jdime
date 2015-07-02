@@ -110,7 +110,7 @@ public class NASTMerge {
             String mtd = mtdItr.next();
             for (int i = 0; i < astArray.size(); i++) {
                 StmtIterator stmtIter = new StmtIterator(baseAST, astArray.get(i), mtd);
-            }app
+            }
         }
         mtdItr = mtdNames.iterator();
         while (mtdItr.hasNext()) {
